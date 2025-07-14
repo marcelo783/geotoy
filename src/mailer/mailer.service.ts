@@ -21,13 +21,19 @@ export class MailerService {
     })
   }
 
-  async sendEmail(to: string, subject: string, html: string, attachments?: { filename: string; path: string }[],): Promise<void> {
-    await this.transporter.sendMail({
-      from: `"Geotoy" <${process.env.EMAIL_FROM}>`,
-      to,
-      subject,
-      html,
-      attachments,  
-    })
-  }
+  async sendEmail(
+  to: string,
+  subject: string,
+  html: string,
+  attachments?: { filename: string; path: string }[],
+): Promise<void> {
+  await this.transporter.sendMail({
+    from: `"Geotoy" <${process.env.EMAIL_FROM}>`,
+    to,
+    subject,
+    html,
+    attachments,
+  });
+}
+
 }

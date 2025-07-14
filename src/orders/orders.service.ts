@@ -10,6 +10,9 @@ import axios from 'axios';
 import * as fs from 'fs';
 import { PdfUploadService } from './pdf-upload.service';
 import { MailerService } from '../mailer/mailer.service';
+import * as path from 'path';
+
+
 
 
 function parseNumber(value: any): number {
@@ -32,9 +35,38 @@ export class OrdersService {
   ) {}
 
   async create(createOrderDto: CreateOrderDto): Promise<Order> {
-    const createdOrder = new this.orderModel(createOrderDto);
-    return createdOrder.save();
+  console.log('📥 Criando nova ordem:', createOrderDto);
+
+  const createdOrder = new this.orderModel(createOrderDto);
+  const savedOrder = await createdOrder.save();
+
+  // Envia e-mail automático de confirmação
+  if (savedOrder.email) {
+    const html = `
+      <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
+        <h2 style="color: #0f172a;">Olá ${savedOrder.cliente},</h2>
+        <p>Acabamos de receber seu pedido. Obrigado pela preferência!</p>
+        <p><strong>Produto:</strong> ${savedOrder.produto}</p>
+        <br/>
+        <p>Equipe Geotoy</p>
+      </div>
+    `;
+
+    try {
+      await this.mailerService.sendEmail(
+        savedOrder.email,
+        'Recebemos seu pedido',
+        html,
+      );
+      console.log(`📧 E-mail de confirmação enviado para ${savedOrder.email}`);
+    } catch (err) {
+      console.warn(`⚠️ Falha ao enviar e-mail de boas-vindas: ${err.message}`);
+    }
   }
+
+  return savedOrder;
+}
+
 
   async findAll(): Promise<Order[]> {
     return this.orderModel.find().exec();
@@ -62,62 +94,62 @@ export class OrdersService {
   updateOrderDto.valorTotal = novoFrete + novoValor
 
   // 📬 Verifica se houve mudança de status
-  if (status && status !== order.status && order.email) {
-    let assunto = ''
-    let mensagem = ''
+//   if (status && status !== order.status && order.email) {
+//     let assunto = ''
+//     let mensagem = ''
 
-    if (status === 'producao') {
-      assunto = 'Seu pedido está em produção'
-      mensagem =
-        order.mensagemEmail?.producao ||
-        'Seu pedido está agora em produção! Em breve estará pronto para envio.'
-    } else if (status === 'finalizado') {
-      assunto = 'Seu pedido foi finalizado'
-      mensagem =
-        order.mensagemEmail?.finalizado ||
-        'Seu pedido foi finalizado com sucesso! Obrigado pela preferência.'
-    } else if (status === 'enviado') {
-      assunto = 'Seu pedido foi enviado'
-      mensagem =
-        order.mensagemEmail?.enviado ||
-        'Seu pedido foi enviado. Em breve você receberá no endereço informado.'
-    }
+//     if (status === 'producao') {
+//       assunto = 'Seu pedido está em produção'
+//       mensagem =
+//         order.mensagemEmail?.producao ||
+//         'Seu pedido está agora em produção! Em breve estará pronto para envio.'
+//     } else if (status === 'finalizado') {
+//       assunto = 'Seu pedido foi finalizado'
+//       mensagem =
+//         order.mensagemEmail?.finalizado ||
+//         'Seu pedido foi finalizado com sucesso! Obrigado pela preferência.'
+//     } else if (status === 'enviado') {
+//       assunto = 'Seu pedido foi enviado'
+//       mensagem =
+//         order.mensagemEmail?.enviado ||
+//         'Seu pedido foi enviado. Em breve você receberá no endereço informado.'
+//     }
 
-   if (mensagem) {
-  try {
-    const attachments =
-      order.status === 'enviado' && order.notaFiscalPath
-        ? [
-            {
-              filename: 'nota-fiscal.pdf',
-              path: order.notaFiscalPath,
-            },
-          ]
-        : undefined;
+//    if (mensagem) {
+//   try {
+//     const attachments =
+//       order.status === 'enviado' && order.notaFiscalPath
+//         ? [
+//             {
+//               filename: 'nota-fiscal.pdf',
+//               path: order.notaFiscalPath,
+//             },
+//           ]
+//         : undefined;
 
-    await this.mailerService.sendEmail(
-      order.email,
-      assunto,
-      `
-      <div style="font-family: sans-serif; line-height: 1.5; color: #333;">
-        <h2 style="color: #0f172a;">Olá ${order.cliente},</h2>
-        <p>${mensagem}</p>
-        <p><strong>Produto:</strong> ${order.produto}</p>
-        <p><strong>Previsão de entrega:</strong> ${order.previsaoEntrega || '-'}</p>
-        <br/>
-        <p>Atenciosamente,<br/>Equipe Geotoy</p>
-      </div>
-      `,
-      attachments // ✅ último argumento opcional
-    );
+//     await this.mailerService.sendEmail(
+//       order.email,
+//       assunto,
+//       `
+//       <div style="font-family: sans-serif; line-height: 1.5; color: #333;">
+//         <h2 style="color: #0f172a;">Olá ${order.cliente},</h2>
+//         <p>${mensagem}</p>
+//         <p><strong>Produto:</strong> ${order.produto}</p>
+//         <p><strong>Previsão de entrega:</strong> ${order.previsaoEntrega || '-'}</p>
+//         <br/>
+//         <p>Atenciosamente,<br/>Equipe Geotoy</p>
+//       </div>
+//       `,
+//       attachments // ✅ último argumento opcional
+//     );
 
-    console.log(`📧 E-mail automático enviado para ${order.email}`);
-  } catch (err) {
-    console.warn(`⚠️ Falha ao enviar e-mail para ${order.email}`, err.message);
-  }
-}
+//     console.log(`📧 E-mail automático enviado para ${order.email}`);
+//   } catch (err) {
+//     console.warn(`⚠️ Falha ao enviar e-mail para ${order.email}`, err.message);
+//   }
+// }
 
-}
+// }
 
 
   // ✅ Atualiza no banco
@@ -140,36 +172,32 @@ export class OrdersService {
     }
   }
 
-async processPdf(filePath: string): Promise<Order> {
+async processPdf(filePath: string): Promise<any> {
   try {
     const dados = await this.pdfUploadService.extractDataFromPdf(filePath);
 
     console.log('📦 Dados recebidos do microserviço Python:', dados);
 
-    const order = new this.orderModel({
+    if (fs.existsSync(filePath)) {
+      fs.unlinkSync(filePath);
+    }
+
+    // Apenas retorna os dados extraídos
+    return {
       cliente: dados.nome,
       telefone: dados.telefone,
       email: dados.email,
       produto: dados.descricao,
       endereco: dados.endereco,
       observacao: dados.observacao,
-      valorUnitario: parseNumber(dados.valorUnitario), // usa versão de cima
-      valorTotal: parseNumber(dados.valorTotal),
+      valorUnitario: parseNumber(dados.valorUnitario),
       frete: parseNumber(dados.frete),
+      valorTotal: parseNumber(dados.valorTotal),
       previsaoEntrega: dados.previsaoEntrega
         ? new Date(dados.previsaoEntrega.split('/').reverse().join('-'))
         : undefined,
       imagem: dados.imagem,
-      status: 'novo',
-    });
-
-    await order.save();
-
-    if (fs.existsSync(filePath)) {
-      fs.unlinkSync(filePath);
-    }
-
-    return order;
+    };
   } catch (err) {
     console.error('❌ Erro ao processar PDF:', err);
     throw new HttpException('Falha ao extrair dados do PDF', HttpStatus.INTERNAL_SERVER_ERROR);
@@ -177,42 +205,34 @@ async processPdf(filePath: string): Promise<Order> {
 }
 
 
+async enviarEmail(id: string, body: any, anexos?: Express.Multer.File[]) {
+  const ordem = await this.orderModel.findById(id);
+  if (!ordem) throw new NotFoundException("Ordem não encontrada");
 
+  const attachments = anexos?.map((file) => ({
+    filename: file.originalname,
+    path: path.resolve(file.path), // ✅ caminho absoluto
+  })) || [];
 
-  // private extract(
-  //   text: string,
-  //   patte
-  // rn: RegExp,
-  //   group: number = 0,
-  // ): string | undefined {
-  //   const match = text.match(pattern);
-  //   return match ? match[group] : undefined;
-  // }
+  const html = `
+    <div>
+      <h2>Olá ${ordem.cliente},</h2>
+      <p>${body.mensagem}</p>
+      ${body.codigoRastreamento ? `<p><strong>Código:</strong> ${body.codigoRastreamento}</p>` : ''}
+      <p><strong>Produto:</strong> ${ordem.produto}</p>
+      <p>Equipe Geotoy</p>
+    </div>
+  `;
 
-  // private extractValorReal(text: string): string | undefined {
-  //   const regex = /(MUNNY.*?)(\d{1,3}(?:\.\d{3})*,\d{2})/g;
-  //   const matches: string[] = [];
-
-  //   for (const match of text.matchAll(regex)) {
-  //     matches.push(match[2]);
-  //   }
-
-  //   if (matches.length) {
-  //     return matches.sort((a, b) =>
-  //       parseFloat(b.replace(/\./g, '').replace(',', '.')) -
-  //       parseFloat(a.replace(/\./g, '').replace(',', '.'))
-  //     )[0];
-  //   }
-
-  //   const fallback = [...text.matchAll(/(\d{1,3}(?:\.\d{3})*,\d{2})/g)].map((m) => m[1]);
-  //   if (fallback.length) {
-  //     return fallback.sort((a, b) =>
-  //       parseFloat(b.replace(/\./g, '').replace(',', '.')) -
-  //       parseFloat(a.replace(/\./g, '').replace(',', '.'))
-  //     )[0];
-  //   }
-
-  //   return undefined;
-  // }
+  await this.mailerService.sendEmail(
+    ordem.email,
+    `Atualização do Pedido: ${ordem.produto}`,
+    html,
+    attachments
+  );
+}
 
 }
+
+
+  
