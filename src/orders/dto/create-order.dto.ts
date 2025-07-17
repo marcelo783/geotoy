@@ -41,6 +41,10 @@ export class CreateOrderDto {
   @IsOptional()
   previsaoEntrega?: Date;
 
+  @IsOptional()
+  @IsString()
+  imagens?: string[];
+
    @IsOptional()
   @IsObject()
   mensagemEmail?: {

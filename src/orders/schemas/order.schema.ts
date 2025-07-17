@@ -35,6 +35,9 @@ export class Order {
 
   @Prop() imagem?: string;
 
+   @Prop() imagens?: string[];
+
+
   @Prop()
   previsaoEntrega: Date;
 

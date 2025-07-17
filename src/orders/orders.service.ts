@@ -42,15 +42,43 @@ export class OrdersService {
 
   // Envia e-mail automático de confirmação
   if (savedOrder.email) {
-    const html = `
-      <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
-        <h2 style="color: #0f172a;">Olá ${savedOrder.cliente},</h2>
-        <p>Acabamos de receber seu pedido. Obrigado pela preferência!</p>
-        <p><strong>Produto:</strong> ${savedOrder.produto}</p>
-        <br/>
-        <p>Equipe Geotoy</p>
-      </div>
-    `;
+   const html = `
+  <div style="max-width: 600px; margin: auto; font-family: Arial, sans-serif; color: #333; border: 1px solid #ddd; padding: 20px; border-radius: 8px;">
+    <!-- Logo da empresa -->
+    <div style="text-align: center; margin-bottom: 20px;">
+      <img src="https://geotoy.com.br/logo geotoy" alt="Logo Geotoy" style="max-width: 180px;" />
+    </div>
+
+    <!-- Saudação -->
+    <h2 style="color: #0f172a;">Olá ${savedOrder.cliente},</h2>
+    <p>Acabamos de receber o seu pedido e em breve iniciaremos o processo de <strong>customização</strong> com muito carinho e atenção aos detalhes.</p>
+
+    <!-- Imagem do produto -->
+    <div style="text-align: center; margin: 20px 0;">
+      <img src="${savedOrder.imagem}" alt="Imagem do produto" style="max-width: 100%; border-radius: 8px; border: 1px solid #ccc;" />
+    </div>
+    
+    <!-- Detalhes do pedido -->
+    <div style="margin: 20px 0;">
+      <h3 style="color: #1e293b;">Detalhes do Pedido:</h3>
+      <ul style="list-style: none; padding: 0;">
+        <li><strong>Produto:</strong> ${savedOrder.produto}</li>
+        <li><strong>Observações:</strong> ${savedOrder.observacao || "Nenhuma observação adicionada"}</li>
+        <li><strong>Valor Unitário:</strong> R$ ${Number(savedOrder.valorUnitario).toFixed(2)}</li>
+        <li><strong>Frete:</strong> R$ ${Number(savedOrder.frete).toFixed(2)}</li>
+        <li><strong>Valor Total:</strong> <strong style="color: #16a34a;">R$ ${Number(savedOrder.valorTotal).toFixed(2)}</strong></li>
+      </ul>
+    </div>
+
+    <!-- Agradecimento -->
+    <p>Se tiver qualquer dúvida ou quiser acompanhar o andamento, fique à vontade para nos chamar!</p>
+    
+    <!-- Assinatura -->
+    <p>Atenciosamente,</p>
+    <p><strong>Equipe Geotoy</strong></p>
+  </div>
+`;
+
 
     try {
       await this.mailerService.sendEmail(

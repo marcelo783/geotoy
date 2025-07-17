@@ -123,7 +123,7 @@ async criarComImagem(
     observacao: Array.isArray(body.observacao)
       ? body.observacao
       : [body.observacao],
-    imagem: imagemPaths[0] || null, // ou armazene múltiplas
+  imagens: imagemPaths, // ou armazene múltiplas
   };
 
   return this.ordersService.create(dto);
