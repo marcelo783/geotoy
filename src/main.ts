@@ -2,6 +2,8 @@
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import * as fs from 'fs';
+import { join } from 'path';
+import { NestExpressApplication } from '@nestjs/platform-express';
 
 async function bootstrap() {
   // Cria pastas necessárias ANTES de iniciar o app
@@ -10,7 +12,10 @@ async function bootstrap() {
     if (!fs.existsSync(dir)) fs.mkdirSync(dir);
   });
 
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create<NestExpressApplication>(AppModule);
+app.useStaticAssets(join(__dirname, '..', 'uploads'), {
+  prefix: '/uploads/',
+});
 
   app.enableCors({
     origin: 'http://localhost:5173',

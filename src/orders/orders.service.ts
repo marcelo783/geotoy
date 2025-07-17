@@ -93,64 +93,6 @@ export class OrdersService {
   const novoValor = typeof valorUnitario === 'number' ? valorUnitario : order.valorUnitario || 0
   updateOrderDto.valorTotal = novoFrete + novoValor
 
-  // 📬 Verifica se houve mudança de status
-//   if (status && status !== order.status && order.email) {
-//     let assunto = ''
-//     let mensagem = ''
-
-//     if (status === 'producao') {
-//       assunto = 'Seu pedido está em produção'
-//       mensagem =
-//         order.mensagemEmail?.producao ||
-//         'Seu pedido está agora em produção! Em breve estará pronto para envio.'
-//     } else if (status === 'finalizado') {
-//       assunto = 'Seu pedido foi finalizado'
-//       mensagem =
-//         order.mensagemEmail?.finalizado ||
-//         'Seu pedido foi finalizado com sucesso! Obrigado pela preferência.'
-//     } else if (status === 'enviado') {
-//       assunto = 'Seu pedido foi enviado'
-//       mensagem =
-//         order.mensagemEmail?.enviado ||
-//         'Seu pedido foi enviado. Em breve você receberá no endereço informado.'
-//     }
-
-//    if (mensagem) {
-//   try {
-//     const attachments =
-//       order.status === 'enviado' && order.notaFiscalPath
-//         ? [
-//             {
-//               filename: 'nota-fiscal.pdf',
-//               path: order.notaFiscalPath,
-//             },
-//           ]
-//         : undefined;
-
-//     await this.mailerService.sendEmail(
-//       order.email,
-//       assunto,
-//       `
-//       <div style="font-family: sans-serif; line-height: 1.5; color: #333;">
-//         <h2 style="color: #0f172a;">Olá ${order.cliente},</h2>
-//         <p>${mensagem}</p>
-//         <p><strong>Produto:</strong> ${order.produto}</p>
-//         <p><strong>Previsão de entrega:</strong> ${order.previsaoEntrega || '-'}</p>
-//         <br/>
-//         <p>Atenciosamente,<br/>Equipe Geotoy</p>
-//       </div>
-//       `,
-//       attachments // ✅ último argumento opcional
-//     );
-
-//     console.log(`📧 E-mail automático enviado para ${order.email}`);
-//   } catch (err) {
-//     console.warn(`⚠️ Falha ao enviar e-mail para ${order.email}`, err.message);
-//   }
-// }
-
-// }
-
 
   // ✅ Atualiza no banco
   const updatedOrder = await this.orderModel

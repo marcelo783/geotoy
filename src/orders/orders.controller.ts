@@ -94,6 +94,40 @@ async enviarEmailComAnexos(
   return this.ordersService.enviarEmail(id, body, arquivos);
 }
 
+//enviar img
+
+@Post('com-imagem')
+@UseInterceptors(
+  FilesInterceptor('imagens', 5, {
+    storage: diskStorage({
+      destination: './uploads/imagens',
+      filename: (req, file, cb) => {
+        const ext = path.extname(file.originalname);
+        const nome = `${Date.now()}-${file.originalname}`;
+        cb(null, nome);
+      },
+    }),
+  })
+)
+async criarComImagem(
+  @Body() body: any,
+  @UploadedFiles() imagens: Express.Multer.File[],
+) {
+  const imagemPaths = imagens.map((img) => `http://localhost:3000/uploads/imagens/${img.filename}`);
+
+  const dto: CreateOrderDto = {
+    ...body,
+    frete: parseFloat(body.frete),
+    valorUnitario: parseFloat(body.valorUnitario),
+    valorTotal: parseFloat(body.valorTotal),
+    observacao: Array.isArray(body.observacao)
+      ? body.observacao
+      : [body.observacao],
+    imagem: imagemPaths[0] || null, // ou armazene múltiplas
+  };
+
+  return this.ordersService.create(dto);
+}
 
 
 
