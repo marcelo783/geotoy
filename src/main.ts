@@ -17,6 +17,11 @@ app.useStaticAssets(join(__dirname, '..', 'uploads'), {
   prefix: '/uploads/',
 });
 
+ // Serve public (logo, arquivos institucionais)
+  app.useStaticAssets(join(__dirname, '..', 'public'), {
+    prefix: '/public/',
+  });
+
   app.enableCors({
     origin: 'http://localhost:5173',
     credentials: true,
