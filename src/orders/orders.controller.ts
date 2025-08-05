@@ -11,6 +11,7 @@ import {
   BadRequestException,
   UploadedFiles,
   InternalServerErrorException,
+  UseGuards,
 } from '@nestjs/common';
 import { OrdersService } from './orders.service';
 import { UpdateOrderDto } from './dto/update-order.dto';
@@ -18,6 +19,7 @@ import { FileFieldsInterceptor, FileInterceptor, FilesInterceptor } from '@nestj
 import { diskStorage } from 'multer';
 import * as path from 'path';
 import { CreateOrderDto } from './dto/create-order.dto';
+import { JwtAuthGuard } from 'src/auth/jwt-auth.guard';
 
 @Controller('orders')
 export class OrdersController {
@@ -28,7 +30,11 @@ create(@Body() createOrderDto: CreateOrderDto) {
   return this.ordersService.create(createOrderDto);
 }
 
-
+@UseGuards(JwtAuthGuard)
+@Get()
+findAll() {
+  return this.ordersService.findAll();
+}
 
   @Post('upload')
   @UseInterceptors(
@@ -162,10 +168,7 @@ async uploadNotaFiscal(
 }
 
 
-  @Get()
-  findAll() {
-    return this.ordersService.findAll();
-  }
+
 
   @Get(':id')
   findOne(@Param('id') id: string) {

@@ -42,8 +42,10 @@ export class CreateOrderDto {
   previsaoEntrega?: Date;
 
   @IsOptional()
-  @IsString()
-  imagens?: string[];
+@IsArray()
+@IsString({ each: true }) // <- garante que cada item seja string
+imagens?: string[];
+
 
    @IsOptional()
   @IsObject()

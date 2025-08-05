@@ -4,11 +4,11 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
 import { CreateOrderDto } from './dto/create-order.dto';
 import { UpdateOrderDto } from './dto/update-order.dto';
-import { Order, OrderDocument } from './schemas/order.schema';
+import { Order } from './entities/order.entity';
 import { gerarTemplateEmail } from 'src/templates/email-template.service';
 import * as FormData from 'form-data';
 import axios from 'axios';
@@ -98,8 +98,8 @@ function gerarLinhaDoTempoHTML(
 @Injectable()
 export class OrdersService {
   constructor(
-    @InjectModel(Order.name)
-    private orderModel: Model<OrderDocument>,
+    @InjectRepository(Order)
+    private readonly orderRepository: Repository<Order>,
     private readonly pdfUploadService: PdfUploadService,
     private readonly mailerService: MailerService,
   ) {}
@@ -107,8 +107,9 @@ export class OrdersService {
   async create(createOrderDto: CreateOrderDto): Promise<Order> {
     console.log('📥 Criando nova ordem:', createOrderDto);
 
-    const createdOrder = new this.orderModel(createOrderDto);
-    const savedOrder = await createdOrder.save();
+    const order = this.orderRepository.create(createOrderDto);
+const savedOrder = await this.orderRepository.save(order);
+
 
     const status = 'novo';
 
@@ -150,11 +151,13 @@ export class OrdersService {
   }
 
   async findAll(): Promise<Order[]> {
-    return this.orderModel.find().exec();
+    return this.orderRepository.find();
+
   }
 
   async findOne(id: string): Promise<Order> {
-    const order = await this.orderModel.findById(id).exec();
+   const order = await this.orderRepository.findOne({ where: { id } });
+
     if (!order) {
       throw new NotFoundException(`Pedido com ID ${id} não encontrado`);
     }
@@ -162,39 +165,38 @@ export class OrdersService {
   }
 
   async update(id: string, updateOrderDto: UpdateOrderDto): Promise<Order> {
-    const { frete, valorUnitario, status } = updateOrderDto;
+  const order = await this.orderRepository.findOne({ where: { id } });
 
-    const order = await this.orderModel.findById(id).exec();
-    if (!order) {
-      throw new NotFoundException(`Pedido com ID ${id} não encontrado`);
-    }
-
-    // 🔄 Atualiza valorTotal automaticamente
-    const novoFrete = typeof frete === 'number' ? frete : order.frete || 0;
-    const novoValor =
-      typeof valorUnitario === 'number'
-        ? valorUnitario
-        : order.valorUnitario || 0;
-    updateOrderDto.valorTotal = novoFrete + novoValor;
-
-    // ✅ Atualiza no banco
-    const updatedOrder = await this.orderModel
-      .findByIdAndUpdate(id, updateOrderDto, { new: true })
-      .exec();
-
-    if (!updatedOrder) {
-      throw new NotFoundException(`Pedido com ID ${id} não encontrado`);
-    }
-
-    return updatedOrder;
+  if (!order) {
+    throw new NotFoundException(`Pedido com ID ${id} não encontrado`);
   }
 
-  async remove(id: string): Promise<void> {
-    const deletedOrder = await this.orderModel.findByIdAndDelete(id).exec();
-    if (!deletedOrder) {
-      throw new NotFoundException(`Pedido com ID ${id} não encontrado`);
-    }
+  // 🔄 Atualiza valorTotal automaticamente
+  const novoFrete = typeof updateOrderDto.frete === 'number' ? updateOrderDto.frete : order.frete || 0;
+  const novoValor = typeof updateOrderDto.valorUnitario === 'number' ? updateOrderDto.valorUnitario : order.valorUnitario || 0;
+  updateOrderDto.valorTotal = novoFrete + novoValor;
+
+  // ✅ Atualiza os campos no banco
+  await this.orderRepository.update(id, updateOrderDto);
+
+  const updatedOrder = await this.orderRepository.findOne({ where: { id } });
+
+  if (!updatedOrder) {
+    throw new NotFoundException(`Erro ao atualizar pedido com ID ${id}`);
   }
+
+  return updatedOrder;
+}
+
+
+ async remove(id: string): Promise<void> {
+  const result = await this.orderRepository.delete(id);
+
+  if (result.affected === 0) {
+    throw new NotFoundException(`Pedido com ID ${id} não encontrado`);
+  }
+}
+
 
   async processPdf(filePath: string): Promise<any> {
     try {
@@ -232,8 +234,11 @@ export class OrdersService {
   }
 
   async enviarEmail(id: string, body: any, anexos?: Express.Multer.File[]) {
-    const ordem = await this.orderModel.findById(id);
-    if (!ordem) throw new NotFoundException('Ordem não encontrada');
+    const ordem = await this.orderRepository.findOne({ where: { id } });
+
+if (!ordem) {
+  throw new NotFoundException(`Pedido com ID ${id} não encontrado`);
+}
 
     const attachments =
       anexos?.map((file) => ({

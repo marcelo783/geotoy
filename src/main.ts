@@ -3,21 +3,23 @@ import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import * as fs from 'fs';
 import { join } from 'path';
+import * as cookieParser from 'cookie-parser'; // <-- AQUI
 import { NestExpressApplication } from '@nestjs/platform-express';
 
 async function bootstrap() {
-  // Cria pastas necessárias ANTES de iniciar o app
   const dirs = ['./uploads', './tmp'];
   dirs.forEach(dir => {
     if (!fs.existsSync(dir)) fs.mkdirSync(dir);
   });
 
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
-app.useStaticAssets(join(__dirname, '..', 'uploads'), {
-  prefix: '/uploads/',
-});
 
- // Serve public (logo, arquivos institucionais)
+  app.use(cookieParser()); // <-- AQUI (muito importante!)
+
+  app.useStaticAssets(join(__dirname, '..', 'uploads'), {
+    prefix: '/uploads/',
+  });
+
   app.useStaticAssets(join(__dirname, '..', 'public'), {
     prefix: '/public/',
   });

@@ -2,19 +2,32 @@ import { Module } from '@nestjs/common'
 import { ConfigModule } from '@nestjs/config'
 import { AppController } from './app.controller'
 import { AppService } from './app.service'
-import { MongooseModule } from '@nestjs/mongoose'
 import { OrdersModule } from './orders/orders.module'
 import { MailerModule } from './mailer/mailer.module'
+import { TypeOrmModule } from '@nestjs/typeorm';
+import { UsersModule } from './users/users.module'
+import { AuthModule } from './auth/auth.module'
 
 @Module({
   imports: [
-    // ✅ Carrega o .env
     ConfigModule.forRoot({
-      isGlobal: true, // torna disponível em toda a aplicação
+      isGlobal: true,
     }),
-    MongooseModule.forRoot('mongodb://localhost:27017/geotoy'),
+   TypeOrmModule.forRoot({
+  type: 'postgres',
+  host: process.env.DB_HOST,
+  port: Number(process.env.DB_PORT),
+  username: process.env.DB_USERNAME,
+  password: process.env.DB_PASSWORD,
+  database: process.env.DB_NAME,
+  autoLoadEntities: true,
+  synchronize: true,
+}),
+
     OrdersModule,
     MailerModule,
+    AuthModule,
+    UsersModule,
   ],
   controllers: [AppController],
   providers: [AppService],
