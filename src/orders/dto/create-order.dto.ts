@@ -1,4 +1,13 @@
-import { IsEmail, IsNotEmpty, IsOptional, IsString, IsNumber, IsArray, IsObject } from 'class-validator';
+import { Expose } from 'class-transformer';
+import {
+  IsEmail,
+  IsNotEmpty,
+  IsOptional,
+  IsString,
+  IsNumber,
+  IsArray,
+  IsObject,
+} from 'class-validator';
 
 export class CreateOrderDto {
   @IsNotEmpty()
@@ -39,36 +48,45 @@ export class CreateOrderDto {
   frete?: number;
 
   @IsOptional()
+  @IsString()
+  tipoFrete?: string;
+
+  @IsOptional()
+  @IsString()
+  pintor?: string;
+
+  @IsOptional()
   previsaoEntrega?: Date;
 
   @IsOptional()
-@IsArray()
-@IsString({ each: true }) // <- garante que cada item seja string
-imagens?: string[];
+  @IsArray()
+  @IsString({ each: true }) // <- garante que cada item seja string
+  imagens?: string[];
 
-
-   @IsOptional()
+  @IsOptional()
   @IsObject()
   mensagemEmail?: {
-    producao?: string
-    finalizado?: string
-    enviado?: string
-  }
+    producao?: string;
+    finalizado?: string;
+    enviado?: string;
+  };
 
   @IsOptional()
   @IsObject()
   mensagemWhatsApp?: {
-    producao?: string
-    finalizado?: string
-    enviado?: string
-  }
+    producao?: string;
+    finalizado?: string;
+    enviado?: string;
+  };
 
   @IsOptional()
   @IsString()
-  status?: string // ex: "novo", "producao", "finalizado", "enviado"
+  status?: string; // ex: "novo", "producao", "finalizado", "enviado"
 
-   @IsOptional()
+  @IsOptional()
   @IsString()
-  notaFiscalPath?: string 
-}
+  notaFiscalPath?: string;
 
+  @Expose()
+  createdAt: Date;
+}

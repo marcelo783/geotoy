@@ -5,6 +5,7 @@ import * as fs from 'fs';
 import { join } from 'path';
 import * as cookieParser from 'cookie-parser'; // <-- AQUI
 import { NestExpressApplication } from '@nestjs/platform-express';
+import { ValidationPipe } from '@nestjs/common';
 
 async function bootstrap() {
   const dirs = ['./uploads', './tmp'];
@@ -13,6 +14,14 @@ async function bootstrap() {
   });
 
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
+
+    app.useGlobalPipes(
+    new ValidationPipe({
+      whitelist: true,
+      forbidNonWhitelisted: false,
+      transform: true, // 👈 ESSENCIAL para o tipoFrete funcionar
+    }),
+  );
 
   app.use(cookieParser()); // <-- AQUI (muito importante!)
 

@@ -38,6 +38,13 @@ export class Order {
   @Column('float', { nullable: true })
   frete: number;
 
+  // antes: @Column('float', { nullable: true }) tipoFrete: number;
+  @Column({ type: 'varchar', length: 20, nullable: true })
+  tipoFrete?: string; // "SEDEX" | "PAC" | undefined
+
+  @Column({ nullable: true })
+  pintor?: string;
+
   @Column({ nullable: true })
   imagem: string;
 

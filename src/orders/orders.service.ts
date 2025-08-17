@@ -5,7 +5,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Between, Repository } from 'typeorm';
 import { CreateOrderDto } from './dto/create-order.dto';
 import { UpdateOrderDto } from './dto/update-order.dto';
 import { Order } from './entities/order.entity';
@@ -108,9 +108,8 @@ export class OrdersService {
     console.log('📥 Criando nova ordem:', createOrderDto);
 
     const order = this.orderRepository.create(createOrderDto);
-const savedOrder = await this.orderRepository.save(order);
-
-
+    const savedOrder = await this.orderRepository.save(order);
+    console.log('💾 Ordem salva:', savedOrder);
     const status = 'novo';
 
     if (savedOrder.email) {
@@ -152,11 +151,76 @@ const savedOrder = await this.orderRepository.save(order);
 
   async findAll(): Promise<Order[]> {
     return this.orderRepository.find();
+  }
 
+  //contador pintura:
+  async countByPintor(pintor: string): Promise<number> {
+    return await this.orderRepository.count({ where: { pintor } });
+  }
+
+  //todos
+
+  
+async countAllPintores() {
+  return this.orderRepository
+    .createQueryBuilder('order')
+    .select('order.pintor', 'pintor')
+    .addSelect('COUNT(*)', 'total')
+    .groupBy('order.pintor')
+    .getRawMany();
+}
+
+
+  // métricas para dashboard
+
+  async getMetrics(from: string, to: string) {
+    const orders = await this.orderRepository.find({
+      where: {
+        createdAt: Between(new Date(from), new Date(to)),
+      },
+    });
+
+    const totalPedidos = orders.length;
+
+    const totalValor = orders.reduce(
+      (acc, order) => acc + Number(order.valorTotal),
+      0,
+    );
+    const totalFrete = orders.reduce(
+      (acc, order) => acc + Number(order.frete),
+      0,
+    );
+
+    const statusCount: Record<string, number> = {};
+    const freteCount: Record<string, number> = {};
+    const produtos: string[] = [];
+
+    for (const order of orders) {
+      // Contagem por status
+      statusCount[order.status] = (statusCount[order.status] || 0) + 1;
+
+      // Contagem por frete
+      freteCount[order.frete] =
+        (freteCount[order.frete] || 0) + Number(order.frete);
+
+      // Lista de produtos (nome/descrição)
+      if (order.produto && !produtos.includes(order.produto)) {
+        produtos.push(order.produto);
+      }
+    }
+
+    return {
+      totalPedidos,
+      totalValor,
+      totalFrete,
+      statusCount,
+      freteCount,
+      produtos,
+    };
   }
 
   async findOne(id: string): Promise<Order> {
-   const order = await this.orderRepository.findOne({ where: { id } });
+    const order = await this.orderRepository.findOne({ where: { id } });
 
     if (!order) {
       throw new NotFoundException(`Pedido com ID ${id} não encontrado`);
@@ -165,38 +229,42 @@ const savedOrder = await this.orderRepository.save(order);
   }
 
   async update(id: string, updateOrderDto: UpdateOrderDto): Promise<Order> {
-  const order = await this.orderRepository.findOne({ where: { id } });
+    const order = await this.orderRepository.findOne({ where: { id } });
 
-  if (!order) {
-    throw new NotFoundException(`Pedido com ID ${id} não encontrado`);
+    if (!order) {
+      throw new NotFoundException(`Pedido com ID ${id} não encontrado`);
+    }
+
+    // 🔄 Atualiza valorTotal automaticamente
+    const novoFrete =
+      typeof updateOrderDto.frete === 'number'
+        ? updateOrderDto.frete
+        : order.frete || 0;
+    const novoValor =
+      typeof updateOrderDto.valorUnitario === 'number'
+        ? updateOrderDto.valorUnitario
+        : order.valorUnitario || 0;
+    updateOrderDto.valorTotal = novoFrete + novoValor;
+
+    // ✅ Atualiza os campos no banco
+    await this.orderRepository.update(id, updateOrderDto);
+
+    const updatedOrder = await this.orderRepository.findOne({ where: { id } });
+
+    if (!updatedOrder) {
+      throw new NotFoundException(`Erro ao atualizar pedido com ID ${id}`);
+    }
+
+    return updatedOrder;
   }
 
-  // 🔄 Atualiza valorTotal automaticamente
-  const novoFrete = typeof updateOrderDto.frete === 'number' ? updateOrderDto.frete : order.frete || 0;
-  const novoValor = typeof updateOrderDto.valorUnitario === 'number' ? updateOrderDto.valorUnitario : order.valorUnitario || 0;
-  updateOrderDto.valorTotal = novoFrete + novoValor;
+  async remove(id: string): Promise<void> {
+    const result = await this.orderRepository.delete(id);
 
-  // ✅ Atualiza os campos no banco
-  await this.orderRepository.update(id, updateOrderDto);
-
-  const updatedOrder = await this.orderRepository.findOne({ where: { id } });
-
-  if (!updatedOrder) {
-    throw new NotFoundException(`Erro ao atualizar pedido com ID ${id}`);
+    if (result.affected === 0) {
+      throw new NotFoundException(`Pedido com ID ${id} não encontrado`);
+    }
   }
-
-  return updatedOrder;
-}
-
-
- async remove(id: string): Promise<void> {
-  const result = await this.orderRepository.delete(id);
-
-  if (result.affected === 0) {
-    throw new NotFoundException(`Pedido com ID ${id} não encontrado`);
-  }
-}
-
 
   async processPdf(filePath: string): Promise<any> {
     try {
@@ -218,6 +286,7 @@ const savedOrder = await this.orderRepository.save(order);
         observacao: dados.observacao,
         valorUnitario: parseNumber(dados.valorUnitario),
         frete: parseNumber(dados.frete),
+        tipoFrete: dados.tipoFrete,
         valorTotal: parseNumber(dados.valorTotal),
         previsaoEntrega: dados.previsaoEntrega
           ? new Date(dados.previsaoEntrega.split('/').reverse().join('-'))
@@ -236,9 +305,9 @@ const savedOrder = await this.orderRepository.save(order);
   async enviarEmail(id: string, body: any, anexos?: Express.Multer.File[]) {
     const ordem = await this.orderRepository.findOne({ where: { id } });
 
-if (!ordem) {
-  throw new NotFoundException(`Pedido com ID ${id} não encontrado`);
-}
+    if (!ordem) {
+      throw new NotFoundException(`Pedido com ID ${id} não encontrado`);
+    }
 
     const attachments =
       anexos?.map((file) => ({

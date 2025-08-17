@@ -12,10 +12,15 @@ import {
   UploadedFiles,
   InternalServerErrorException,
   UseGuards,
+  Query,
 } from '@nestjs/common';
 import { OrdersService } from './orders.service';
 import { UpdateOrderDto } from './dto/update-order.dto';
-import { FileFieldsInterceptor, FileInterceptor, FilesInterceptor } from '@nestjs/platform-express';
+import {
+  FileFieldsInterceptor,
+  FileInterceptor,
+  FilesInterceptor,
+} from '@nestjs/platform-express';
 import { diskStorage } from 'multer';
 import * as path from 'path';
 import { CreateOrderDto } from './dto/create-order.dto';
@@ -25,16 +30,27 @@ import { JwtAuthGuard } from 'src/auth/jwt-auth.guard';
 export class OrdersController {
   constructor(private readonly ordersService: OrdersService) {}
 
-@Post()
-create(@Body() createOrderDto: CreateOrderDto) {
-  return this.ordersService.create(createOrderDto);
-}
+  @Get('count-all-pintores')
+  async countAllPintores() {
+    return this.ordersService.countAllPintores();
+  }
 
-@UseGuards(JwtAuthGuard)
-@Get()
-findAll() {
-  return this.ordersService.findAll();
-}
+  @Post()
+  create(@Body() createOrderDto: CreateOrderDto) {
+    return this.ordersService.create(createOrderDto);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Get()
+  findAll() {
+    return this.ordersService.findAll();
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Get('metrics')
+  getMetrics(@Query('from') from: string, @Query('to') to: string) {
+    return this.ordersService.getMetrics(from, to);
+  }
 
   @Post('upload')
   @UseInterceptors(
@@ -52,8 +68,6 @@ findAll() {
         },
       }),
     }),
-
-    
   )
   async uploadOrder(@UploadedFile() file: Express.Multer.File) {
     if (!file?.path) {
@@ -61,114 +75,116 @@ findAll() {
     }
 
     console.log('Arquivo recebido:', file.originalname);
-    const result = await this.ordersService.processPdf(file.path);
-    return result;
+
+    const dados = await this.ordersService.processPdf(file.path);
+
+    //console.log('📥 Criando nova ordem com dados extraídos:', dados);
+
+    //const createdOrder = await this.ordersService.create(dados);
+
+    return dados;
   }
 
-
-@Post(':id/enviar-email')
-@UseInterceptors(
-  FilesInterceptor('arquivos', 10, {
-    storage: diskStorage({
-      destination: './uploads/temp',
-      filename: (req, file, cb) => {
-        const ext = path.extname(file.originalname);
-        const fileName = `${Date.now()}-${file.originalname}`;
-        cb(null, fileName);
+  @Post(':id/enviar-email')
+  @UseInterceptors(
+    FilesInterceptor('arquivos', 10, {
+      storage: diskStorage({
+        destination: './uploads/temp',
+        filename: (req, file, cb) => {
+          const ext = path.extname(file.originalname);
+          const fileName = `${Date.now()}-${file.originalname}`;
+          cb(null, fileName);
+        },
+      }),
+      fileFilter: (req, file, cb) => {
+        const allowed = ['.jpg', '.jpeg', '.png', '.pdf'];
+        const ext = path.extname(file.originalname).toLowerCase();
+        if (allowed.includes(ext)) {
+          cb(null, true);
+        } else {
+          cb(new BadRequestException('Tipo de arquivo não suportado'), false);
+        }
       },
     }),
-    fileFilter: (req, file, cb) => {
-      const allowed = ['.jpg', '.jpeg', '.png', '.pdf'];
-      const ext = path.extname(file.originalname).toLowerCase();
-      if (allowed.includes(ext)) {
-        cb(null, true);
-      } else {
-        cb(new BadRequestException('Tipo de arquivo não suportado'), false);
-      }
-    },
-  }),
-)
-async enviarEmailComAnexos(
-  @Param('id') id: string,
-  @Body() body: any,
-  @UploadedFiles() arquivos: Express.Multer.File[],
-) {
-  console.log('📨 Requisição recebida para ID:', id);
-  console.log('📧 Body:', body);
-  console.log('📎 Arquivos:', arquivos);
+  )
+  async enviarEmailComAnexos(
+    @Param('id') id: string,
+    @Body() body: any,
+    @UploadedFiles() arquivos: Express.Multer.File[],
+  ) {
+    console.log('📨 Requisição recebida para ID:', id);
+    console.log('📧 Body:', body);
+    console.log('📎 Arquivos:', arquivos);
 
-  return this.ordersService.enviarEmail(id, body, arquivos);
-}
+    return this.ordersService.enviarEmail(id, body, arquivos);
+  }
 
-//enviar img
+  //enviar img
 
-@Post('com-imagem')
-@UseInterceptors(
-  FilesInterceptor('imagens', 5, {
-    storage: diskStorage({
-      destination: './uploads/imagens',
-      filename: (req, file, cb) => {
-        const ext = path.extname(file.originalname);
-        const nome = `${Date.now()}-${file.originalname}`;
-        cb(null, nome);
-      },
+  @Post('com-imagem')
+  @UseInterceptors(
+    FilesInterceptor('imagens', 5, {
+      storage: diskStorage({
+        destination: './uploads/imagens',
+        filename: (req, file, cb) => {
+          const ext = path.extname(file.originalname);
+          const nome = `${Date.now()}-${file.originalname}`;
+          cb(null, nome);
+        },
+      }),
     }),
-  })
-)
-async criarComImagem(
-  @Body() body: any,
-  @UploadedFiles() imagens: Express.Multer.File[],
-) {
-  const imagemPaths = imagens.map((img) => `http://localhost:3000/uploads/imagens/${img.filename}`);
+  )
+  async criarComImagem(
+    @Body() body: any,
+    @UploadedFiles() imagens: Express.Multer.File[],
+  ) {
+    const imagemPaths = imagens.map(
+      (img) => `http://localhost:3000/uploads/imagens/${img.filename}`,
+    );
 
-  const dto: CreateOrderDto = {
-    ...body,
-    frete: parseFloat(body.frete),
-    valorUnitario: parseFloat(body.valorUnitario),
-    valorTotal: parseFloat(body.valorTotal),
-    observacao: Array.isArray(body.observacao)
-      ? body.observacao
-      : [body.observacao],
-  imagens: imagemPaths, // ou armazene múltiplas
-  };
+    const dto: CreateOrderDto = {
+      ...body,
+      frete: parseFloat(body.frete),
+      valorUnitario: parseFloat(body.valorUnitario),
+      valorTotal: parseFloat(body.valorTotal),
+      tipoFrete: body.tipoFrete ?? null,
+      observacao: Array.isArray(body.observacao)
+        ? body.observacao
+        : [body.observacao],
+      imagens: imagemPaths, // ou armazene múltiplas
+    };
 
-  return this.ordersService.create(dto);
-}
+    console.log('📥 DTO enviado para service:', dto);
 
-
-
-
-
+    return this.ordersService.create(dto);
+  }
 
   //nota fiscal
 
   @Post(':id/upload-nota')
-@UseInterceptors(
-  FileInterceptor('file', {
-    storage: diskStorage({
-      destination: './uploads/notas',
-      filename: (req, file, cb) => {
-        const fileExt = path.extname(file.originalname);
-        const fileName = `nota_${Date.now()}${fileExt}`;
-        cb(null, fileName);
-      },
+  @UseInterceptors(
+    FileInterceptor('file', {
+      storage: diskStorage({
+        destination: './uploads/notas',
+        filename: (req, file, cb) => {
+          const fileExt = path.extname(file.originalname);
+          const fileName = `nota_${Date.now()}${fileExt}`;
+          cb(null, fileName);
+        },
+      }),
     }),
-  }),
-)
-async uploadNotaFiscal(
-  @Param('id') id: string,
-  @UploadedFile() file: Express.Multer.File,
-) {
-  if (!file?.path) {
-    throw new BadRequestException('Arquivo não enviado');
+  )
+  async uploadNotaFiscal(
+    @Param('id') id: string,
+    @UploadedFile() file: Express.Multer.File,
+  ) {
+    if (!file?.path) {
+      throw new BadRequestException('Arquivo não enviado');
+    }
+
+    // salva o caminho no banco
+    return this.ordersService.update(id, { notaFiscalPath: file.path });
   }
-
-  // salva o caminho no banco
-  return this.ordersService.update(id, { notaFiscalPath: file.path });
-}
-
-
-
 
   @Get(':id')
   findOne(@Param('id') id: string) {
