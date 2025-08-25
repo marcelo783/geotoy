@@ -5,11 +5,13 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { Order } from './entities/order.entity'; // Novo arquivo que vamos criar já já
 import { PdfUploadService } from './pdf-upload.service';
 import { MailerModule } from 'src/mailer/mailer.module';
+import { Feedback } from 'src/feedback/entity/feedback.entity';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([Order]),
+    TypeOrmModule.forFeature([Order, Feedback]),
     MailerModule,
+   
   ],
   controllers: [OrdersController],
   providers: [OrdersService, PdfUploadService],

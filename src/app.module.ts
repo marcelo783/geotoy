@@ -7,12 +7,16 @@ import { MailerModule } from './mailer/mailer.module'
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { UsersModule } from './users/users.module'
 import { AuthModule } from './auth/auth.module'
+import { ScheduleModule } from '@nestjs/schedule';
+import { FeedbackModule } from './feedback/feedback.module'
+
 
 @Module({
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
     }),
+     ScheduleModule.forRoot(),
    TypeOrmModule.forRoot({
   type: 'postgres',
   host: process.env.DB_HOST,
@@ -28,6 +32,8 @@ import { AuthModule } from './auth/auth.module'
     MailerModule,
     AuthModule,
     UsersModule,
+    FeedbackModule,
+ 
   ],
   controllers: [AppController],
   providers: [AppService],

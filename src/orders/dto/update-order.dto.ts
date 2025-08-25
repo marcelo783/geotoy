@@ -1,7 +1,6 @@
-import { PartialType } from '@nestjs/mapped-types';
+import { PartialType, OmitType } from '@nestjs/mapped-types';
 import { CreateOrderDto } from './create-order.dto';
 
-export class UpdateOrderDto extends PartialType(CreateOrderDto) {
-    pintor?: string;
-
-}
+export class UpdateOrderDto extends PartialType(
+  OmitType(CreateOrderDto, ['createdAt'] as const),
+) {}

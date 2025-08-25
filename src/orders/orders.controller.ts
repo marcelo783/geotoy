@@ -30,6 +30,11 @@ import { JwtAuthGuard } from 'src/auth/jwt-auth.guard';
 export class OrdersController {
   constructor(private readonly ordersService: OrdersService) {}
 
+  @Get('mensagens/:status')
+  async getMensagem(@Param('status') status: string) {
+    return this.ordersService.getMensagemPorStatus(status);
+  }
+
   @Get('count-all-pintores')
   async countAllPintores() {
     return this.ordersService.countAllPintores();
@@ -38,6 +43,19 @@ export class OrdersController {
   @Post()
   create(@Body() createOrderDto: CreateOrderDto) {
     return this.ordersService.create(createOrderDto);
+  }
+
+  //para rastreio
+
+  @Patch(':id/enviar')
+  async marcarComoEnviado(
+    @Param('id') id: string,
+    @Body() body: { codigoRastreamento: string },
+  ) {
+    return this.ordersService.update(id, {
+      status: 'enviado',
+      codigoRastreamento: body.codigoRastreamento,
+    });
   }
 
   @UseGuards(JwtAuthGuard)
@@ -191,8 +209,11 @@ export class OrdersController {
     return this.ordersService.findOne(id);
   }
 
+  
+
   @Patch(':id')
   update(@Param('id') id: string, @Body() updateOrderDto: UpdateOrderDto) {
+    console.log('Payload recebido no PATCH:', updateOrderDto);
     return this.ordersService.update(id, updateOrderDto);
   }
 

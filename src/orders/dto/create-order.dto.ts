@@ -7,6 +7,8 @@ import {
   IsNumber,
   IsArray,
   IsObject,
+  IsDateString,
+  IsBoolean,
 } from 'class-validator';
 
 export class CreateOrderDto {
@@ -49,19 +51,29 @@ export class CreateOrderDto {
 
   @IsOptional()
   @IsString()
-  tipoFrete?: string;
+  tipoFrete?: string; // "SEDEX" | "PAC" | etc.
 
   @IsOptional()
   @IsString()
   pintor?: string;
 
+  // ⚠️ Envie como ISO 8601 do front (YYYY-MM-DD ou full ISO). O TypeORM salva como Date.
   @IsOptional()
-  previsaoEntrega?: Date;
+  @IsDateString()
+  previsaoEntrega?: string;
+
+  @IsOptional()
+  @IsString()
+  imagem?: string;
 
   @IsOptional()
   @IsArray()
-  @IsString({ each: true }) // <- garante que cada item seja string
+  @IsString({ each: true })
   imagens?: string[];
+
+  @IsOptional()
+  @IsString()
+  status?: string; // "novo" | "producao" | "finalizado" | "enviado"
 
   @IsOptional()
   @IsObject()
@@ -81,11 +93,32 @@ export class CreateOrderDto {
 
   @IsOptional()
   @IsString()
-  status?: string; // ex: "novo", "producao", "finalizado", "enviado"
+  notaFiscalPath?: string;
+
+  // Rastreamento
+  @IsOptional()
+  @IsString()
+  codigoRastreamento?: string;
 
   @IsOptional()
   @IsString()
-  notaFiscalPath?: string;
+  trackingCode?: string;
+
+  @IsOptional()
+  @IsDateString()
+  deliveredAt?: string;
+
+  @IsOptional()
+  @IsBoolean()
+  feedbackEmailSent?: boolean;
+
+  @IsOptional()
+  @IsDateString()
+  lastTrackCheckAt?: string;
+
+  @IsOptional()
+  @IsString()
+  carrier?: string;
 
   @Expose()
   createdAt: Date;

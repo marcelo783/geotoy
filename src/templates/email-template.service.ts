@@ -8,6 +8,7 @@ interface EmailTemplatePayload {
   gifUrl: string;
   codigoRastreamento?: string;
   mostrarResumo?: boolean;
+  mostrarAcompanhamento?: boolean;
   produto?: string;
   descricao?: string;
   valorUnitario?: string;
@@ -37,6 +38,7 @@ const filePath = path.join(process.cwd(), 'src/templates/email/email-template.ht
     gifUrl: payload.gifUrl,
     codigoRastreamento: payload.codigoRastreamento,
     mostrarResumo: payload.mostrarResumo ?? false,
+    mostrarAcompanhamento: payload.mostrarAcompanhamento ?? false,
     produto: payload.produto ?? '',
     descricao: payload.descricao ?? '',
     valorUnitario: payload.valorUnitario ?? '',

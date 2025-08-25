@@ -1,9 +1,12 @@
+import { Feedback } from 'src/feedback/entity/feedback.entity';
 import {
   Entity,
   PrimaryGeneratedColumn,
   Column,
   CreateDateColumn,
   UpdateDateColumn,
+  OneToOne,
+  OneToMany,
 } from 'typeorm';
 
 @Entity('orders')
@@ -57,6 +60,9 @@ export class Order {
   @Column({ default: 'novo' })
   status: string;
 
+   @OneToMany(() => Feedback, (feedback) => feedback.order, { cascade: true })
+  feedbacks: Feedback[];
+
   @Column('jsonb', { nullable: true })
   mensagemEmail: {
     producao?: string;
@@ -79,4 +85,23 @@ export class Order {
 
   @UpdateDateColumn()
   updatedAt: Date;
+
+  // rastreio
+  @Column({ nullable: true })
+  codigoRastreamento?: string;
+
+  @Column({ nullable: true })
+  trackingCode: string; // código de rastreio (ex: AC906624882BR)
+
+  @Column({ type: 'timestamp', nullable: true })
+  deliveredAt: Date; // quando detectamos que foi entregue
+
+  @Column({ default: false })
+  feedbackEmailSent: boolean; // para não enviar feedback 2x
+
+  @Column({ type: 'timestamp', nullable: true })
+  lastTrackCheckAt: Date; // controle de última verificação
+
+  @Column({ nullable: true })
+  carrier: string;
 }

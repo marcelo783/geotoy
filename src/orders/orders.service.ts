@@ -2,8 +2,10 @@ import {
   HttpException,
   HttpStatus,
   Injectable,
+  Logger,
   NotFoundException,
 } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Between, Repository } from 'typeorm';
 import { CreateOrderDto } from './dto/create-order.dto';
@@ -16,6 +18,7 @@ import * as fs from 'fs';
 import { PdfUploadService } from './pdf-upload.service';
 import { MailerService } from '../mailer/mailer.service';
 import * as path from 'path';
+import { Cron, CronExpression } from '@nestjs/schedule';
 
 function parseNumber(value: any): number {
   if (typeof value === 'string') {
@@ -32,6 +35,7 @@ const statusTextos = {
   producao: 'PRODUÇÃO',
   finalizado: 'FINALIZADO',
   enviado: 'ENVIADO',
+  feedback: 'FEEDBACK',
 };
 
 const saudacoes = {
@@ -97,11 +101,44 @@ function gerarLinhaDoTempoHTML(
 
 @Injectable()
 export class OrdersService {
+  private readonly logger = new Logger(OrdersService.name);
+  private readonly mensagensPorStatus = {
+    producao: {
+      assunto: 'A produção do seu Toy art está à todo vapor',
+      mensagem: `Seu pedido já entrou na fase de produção! Aqui é onde a mágica acontece: tinta, criatividade e atitude se unem pra dar vida ao seu toy exclusivo 🔥<br><br>Estamos cuidando de cada detalhe. <br> Assim que estiver finalizado, avisamos por aqui! <br><br> Obrigado por fazer parte da cultura Geotoy 💜`,
+      gifUrl:
+        'https://media3.giphy.com/media/v1.Y2lkPTc5MGI3NjExcGQ2eDZma3piY3Jpdm85YjJxcnN3d256M2d3bXluMGFtMHhnM2E3ZCZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/65CID1pYSa5vDkKOqw/giphy.gif',
+    },
+    finalizado: {
+      assunto: 'Seu toy ficou pronto! Preparando para envio',
+      mensagem: `Seu Toy exclusivo ficou pronto!<br>Finalizamos a criação e ele já está sendo embalado com segurança, pronto para chegar até você.<br><br>Confira a foto do seu novo Toy art no anexo.<br><br>Em breve, enviaremos o código de rastreio.<br> Você está a poucos dias de conhecer sua peça exclusiva 🎁`,
+      gifUrl:
+        'https://media2.giphy.com/media/v1.Y2lkPTc5MGI3NjExOTc5aXE5ZnRqbHh6dG9jeGxldjZweDlqbTVtamVuOTNmNTJnazJpdyZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/gFoaKERQN3MliFPfNh/giphy.gif',
+    },
+    enviado: {
+      assunto: 'Seu Toy Art foi enviado! Acompanhe a entrega',
+      mensagem: `Seu Toy art foi enviado e já está a caminho da sua coleção!<br><br> 🚚🔥🧾A NF está anexada neste e-mail em PDF. <br> <br> Obrigado por apoiar a arte independente e fazer parte da comunidade Geotoy 💥
+Se precisar de algo, estamos por aqui!F`,
+      gifUrl:
+        'https://media1.giphy.com/media/v1.Y2lkPTc5MGI3NjExdWZxMmg0anBrd3c3NWZ3Mjg1b3QzOTk3aW12NDFpc2Q3dnEwM2ttaSZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/GwdFYLWWgDBQ6kNzgF/giphy.gif',
+    },
+    feedback: {
+      // A chave deve ser em minúsculas, por convenção
+      assunto: 'O que achou do seu Toy art? Conta pra gente!',
+      mensagem:  (orderId: string) => `Faz 48 horas que seu Toy chegou por aí e queremos saber: <br><br> Como foi sua experiência? <br> Seu feedback é muito importante pra gente continuar criando toys únicos, com alma, atitude e arte. <br><br> 👉 Deixe sua opinião aqui: <a href="http://localhost:5173/avaliacao?orderId=${orderId}" target="_blank">
+      Clique aqui para avaliar
+    </a> <br><br> Agradecemos de coração por fazer parte da cultura Geotoy! <br> Nos vemos na próxima criação, conte conosco para amplicar sua coleção! 🎨🧠`,
+      gifUrl:
+        'https://i.postimg.cc/MKVdDP6C/Puss-In-Boots-Awww-GIF-by-Universal-Pictures-Home-Entertainment.gif',
+    },
+  };
+
   constructor(
     @InjectRepository(Order)
     private readonly orderRepository: Repository<Order>,
     private readonly pdfUploadService: PdfUploadService,
     private readonly mailerService: MailerService,
+    private readonly configService: ConfigService,
   ) {}
 
   async create(createOrderDto: CreateOrderDto): Promise<Order> {
@@ -124,6 +161,7 @@ export class OrdersService {
         gifUrl:
           'https://media4.giphy.com/media/v1.Y2lkPTc5MGI3NjExZGlxMnlrZWUzdnFkZms2NWs2dXJxdHdpZHE4Nmx4YjE3ZHFxNnB1MCZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/11sBLVxNs7v6WA/giphy.gif',
         mostrarResumo: true,
+        mostrarAcompanhamento: true,
         produto: savedOrder.produto,
         descricao: savedOrder.observacao?.join(', ') || 'Sem observações',
         valorUnitario: savedOrder.valorUnitario?.toFixed(2) || '0.00',
@@ -160,16 +198,14 @@ export class OrdersService {
 
   //todos
 
-  
-async countAllPintores() {
-  return this.orderRepository
-    .createQueryBuilder('order')
-    .select('order.pintor', 'pintor')
-    .addSelect('COUNT(*)', 'total')
-    .groupBy('order.pintor')
-    .getRawMany();
-}
-
+  async countAllPintores() {
+    return this.orderRepository
+      .createQueryBuilder('order')
+      .select('order.pintor', 'pintor')
+      .addSelect('COUNT(*)', 'total')
+      .groupBy('order.pintor')
+      .getRawMany();
+  }
 
   // métricas para dashboard
 
@@ -229,6 +265,8 @@ async countAllPintores() {
   }
 
   async update(id: string, updateOrderDto: UpdateOrderDto): Promise<Order> {
+    console.log('Service update() recebeu:', updateOrderDto);
+
     const order = await this.orderRepository.findOne({ where: { id } });
 
     if (!order) {
@@ -315,29 +353,18 @@ async countAllPintores() {
         path: path.resolve(file.path),
       })) || [];
 
-    const mensagensPorStatus = {
-      producao: {
-        assunto: 'A produção do seu Toy art está à todo vapor',
-        mensagem: `Seu pedido já entrou na fase de produção! Aqui é onde a mágica acontece: tinta, criatividade e atitude se unem pra dar vida ao seu toy exclusivo 🔥<br><br>Estamos cuidando de cada detalhe. <br> Assim que estiver finalizado, avisamos por aqui! <br><br> Obrigado por fazer parte da cultura Geotoy 💜`,
-        gifUrl: 'https://i.postimg.cc/668TCc4r/bob-GIF.gif',
-      },
-      finalizado: {
-        assunto: 'Seu toy ficou pronto! Preparando para envio',
-        mensagem: `Seu Toy exclusivo ficou pronto!<br>Finalizamos a criação e ele já está sendo embalado com segurança, pronto para chegar até você.<br><br>Confira a foto do seu novo Toy art no anexo.<br><br>Em breve, enviaremos o código de rastreio.<br> Você está a poucos dias de conhecer sua peça exclusiva 🎁`,
-        gifUrl: 'https://i.postimg.cc/QNvCm7cR/Happy-Minions-GIF.gif',
-      },
-      enviado: {
-        assunto: 'Seu Toy Art foi enviado! Acompanhe a entrega',
-        mensagem: `Seu Toy art foi enviado e já está a caminho da sua coleção!<br><br> 🚚🔥🧾A NF está anexada neste e-mail em PDF. <br> <br> Obrigado por apoiar a arte independente e fazer parte da comunidade Geotoy 💥
-Se precisar de algo, estamos por aqui!F`,
-        gifUrl: 'https://i.postimg.cc/nryympjP/carlton-banks-dancing-GIF.gif',
-      },
-    };
+    const config = this.mensagensPorStatus[body.status];
+    if (!config) {
+      throw new NotFoundException(
+        `Mensagem para status "${body.status}" não encontrada`,
+      );
+    }
 
     const saudacoes = {
       producao: 'Fala',
       finalizado: 'Ei',
       enviado: 'Olá',
+      feedback: 'Oi',
     };
 
     const statusTextos = {
@@ -345,6 +372,19 @@ Se precisar de algo, estamos por aqui!F`,
       finalizado: 'FINALIZADO',
       enviado: 'ENVIADO',
     };
+
+    // link de feedback dinâmico
+    // 👇 pega o FRONTEND_URL do .env
+    const frontendUrl = this.configService.get<string>('FRONTEND_URL');
+
+    let mensagemFinal = config.mensagem;
+    if (body.status === 'feedback') {
+      const feedbackLink = `${frontendUrl}/Feedback?orderId=${ordem.id}`;
+      mensagemFinal = mensagemFinal.replace(
+        '[LINK DO FORMULÁRIO]',
+        `<a href="${feedbackLink}" target="_blank">Clique aqui para avaliar</a>`,
+      );
+    }
 
     function gerarLinhaDoTempoHTML(
       status: 'producao' | 'finalizado' | 'enviado',
@@ -399,17 +439,22 @@ Se precisar de algo, estamos por aqui!F`,
         .join('');
     }
 
-    const config = mensagensPorStatus[body.status];
+    //  const config = mensagensPorStatus[body.status];
+    const shouldShowTracking = body.status !== 'feedback';
+    const shouldShowSummary = body.status === 'novo';
 
     const html = gerarTemplateEmail({
       cliente: ordem.cliente,
       saudacao: saudacoes[body.status],
       statusTexto: statusTextos[body.status],
       gerarEtapas: gerarLinhaDoTempoHTML(body.status),
-      mensagem: config.mensagem,
+      mensagem: typeof config.mensagem === 'function' 
+              ? config.mensagem(ordem.id) // 👉 insere o link com orderId
+              : config.mensagem,
       gifUrl: config.gifUrl,
       codigoRastreamento: body.codigoRastreamento,
-      mostrarResumo: false,
+      mostrarResumo: shouldShowSummary,
+      mostrarAcompanhamento: shouldShowTracking,
     });
 
     await this.mailerService.sendEmail(
@@ -419,4 +464,87 @@ Se precisar de algo, estamos por aqui!F`,
       attachments,
     );
   }
+
+  async getMensagemPorStatus(status: string) {
+    const config = this.mensagensPorStatus[status];
+    if (!config) {
+      throw new NotFoundException(
+        `Mensagem para status "${status}" não encontrada`,
+      );
+    }
+
+    return config;
+  }
+
+  async getTodasMensagens() {
+    return this.mensagensPorStatus;
+  }
+
+  // @Cron(CronExpression.EVERY_30_SECONDS) // 👈 produção (1x por dia às 8h da manhã)
+  // async verificarEntregas() {
+  //   this.logger.log('🔍 Iniciando verificação de entregas nos Correios...');
+
+  //   const pedidos = await this.orderRepository.find({
+  //     where: { status: 'enviado' },
+  //   });
+
+  //   this.logger.log(
+  //     `📋 Encontrados ${pedidos.length} pedidos com status "enviado".`,
+  //   );
+
+  //   let consultas = 0;
+
+  //   for (const pedido of pedidos) {
+  //     if (!pedido.codigoRastreamento) {
+  //       this.logger.warn(
+  //         `⚠️ Pedido ${pedido.id} não tem código de rastreamento.`,
+  //       );
+  //       continue;
+  //     }
+
+  //     consultas++;
+
+  //     try {
+  //       const response = await axios.post(
+  //         'https://api-labs.wonca.com.br/wonca.labs.v1.LabsService/Track',
+  //         { code: pedido.codigoRastreamento },
+  //         {
+  //           headers: {
+  //             'Content-Type': 'application/json',
+  //             Authorization: `Apikey ${process.env.SITERASTREIO_API_KEY}`,
+  //           },
+  //         },
+  //       );
+
+  //       const data = response.data?.json
+  //         ? JSON.parse(response.data.json)
+  //         : null;
+
+  //       const entregue = data?.eventos?.some(
+  //         (e) =>
+  //           e.codigo === 'BDE' ||
+  //           e.descricao.toLowerCase().includes('entregue'),
+  //       );
+
+  //       if (entregue) {
+  //         this.logger.log(
+  //           `✅ Pedido ${pedido.id} entregue! Atualizando status e disparando e-mail de feedback...`,
+  //         );
+
+  //         pedido.status = 'feedback';
+  //         await this.orderRepository.save(pedido);
+
+  //         await this.enviarEmail(pedido.id, { status: 'feedback' });
+  //       } else {
+  //         this.logger.log(`⏳ Pedido ${pedido.id} ainda em trânsito.`);
+  //       }
+  //     } catch (err) {
+  //       this.logger.error(
+  //         `⚠️ Erro ao consultar pedido ${pedido.id}: ${err.message}`,
+  //       );
+  //     }
+  //   }
+
+  //   this.logger.log(`📊 Total de consultas feitas na API: ${consultas}`);
+  // }
 }
