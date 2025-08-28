@@ -1,39 +1,40 @@
 // src/mailer/mailer.service.ts
-import { Injectable } from '@nestjs/common'
-import * as nodemailer from 'nodemailer'
+import { Injectable } from '@nestjs/common';
+import * as nodemailer from 'nodemailer';
+import { EmailConfigService } from './email-config.service';
 
 @Injectable()
 export class MailerService {
-  private transporter: nodemailer.Transporter
+  constructor(private readonly emailConfigService: EmailConfigService) {}
 
-  constructor() {
-    this.transporter = nodemailer.createTransport({
+  async sendEmail(
+    to: string,
+    subject: string,
+    html: string,
+    attachments?: { filename: string; path: string }[],
+  ) {
+    const config = await this.emailConfigService.getConfig();
+    if (!config) throw new Error('Configuração de e-mail não encontrada');
+
+    const transporter = nodemailer.createTransport({
       host: 'smtp.gmail.com',
       port: 587,
       secure: false,
       auth: {
-        user: process.env.EMAIL_FROM,       // ex: seuemail@gmail.com
-        pass: process.env.EMAIL_PASSWORD,   // senha ou app password
+        user: config.email,
+        pass: config.password,
       },
       tls: {
-      rejectUnauthorized: false, // ← ESSENCIAL para contornar o certificado
-    },
-    })
+        rejectUnauthorized: false,
+      },
+    });
+
+    await transporter.sendMail({
+      from: `"Geotoy" <${config.email}>`,
+      to,
+      subject,
+      html,
+      attachments, // ✅ agora aceita anexos
+    });
   }
-
-  async sendEmail(
-  to: string,
-  subject: string,
-  html: string,
-  attachments?: { filename: string; path: string }[],
-): Promise<void> {
-  await this.transporter.sendMail({
-    from: `"Geotoy" <${process.env.EMAIL_FROM}>`,
-    to,
-    subject,
-    html,
-    attachments,
-  });
-}
-
 }

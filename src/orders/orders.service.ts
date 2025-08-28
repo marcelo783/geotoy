@@ -371,20 +371,18 @@ Se precisar de algo, estamos por aqui!F`,
       producao: 'PRODUÇÃO',
       finalizado: 'FINALIZADO',
       enviado: 'ENVIADO',
+       feedback: 'FEEDBACK',
     };
 
-    // link de feedback dinâmico
-    // 👇 pega o FRONTEND_URL do .env
-    const frontendUrl = this.configService.get<string>('FRONTEND_URL');
+    
+let mensagemFinal: string;
 
-    let mensagemFinal = config.mensagem;
-    if (body.status === 'feedback') {
-      const feedbackLink = `${frontendUrl}/Feedback?orderId=${ordem.id}`;
-      mensagemFinal = mensagemFinal.replace(
-        '[LINK DO FORMULÁRIO]',
-        `<a href="${feedbackLink}" target="_blank">Clique aqui para avaliar</a>`,
-      );
-    }
+if (typeof config.mensagem === 'function') {
+  mensagemFinal = config.mensagem(ordem.id); 
+} else {
+  mensagemFinal = config.mensagem;
+}
+
 
     function gerarLinhaDoTempoHTML(
       status: 'producao' | 'finalizado' | 'enviado',
@@ -448,9 +446,7 @@ Se precisar de algo, estamos por aqui!F`,
       saudacao: saudacoes[body.status],
       statusTexto: statusTextos[body.status],
       gerarEtapas: gerarLinhaDoTempoHTML(body.status),
-      mensagem: typeof config.mensagem === 'function' 
-              ? config.mensagem(ordem.id) // 👉 insere o link com orderId
-              : config.mensagem,
+       mensagem: mensagemFinal,
       gifUrl: config.gifUrl,
       codigoRastreamento: body.codigoRastreamento,
       mostrarResumo: shouldShowSummary,
@@ -480,71 +476,74 @@ Se precisar de algo, estamos por aqui!F`,
     return this.mensagensPorStatus;
   }
 
-  // @Cron(CronExpression.EVERY_30_SECONDS) // 👈 produção (1x por dia às 8h da manhã)
-  // async verificarEntregas() {
-  //   this.logger.log('🔍 Iniciando verificação de entregas nos Correios...');
+ /*
+   @Cron(CronExpression.EVERY_30_SECONDS) // 👈 produção (1x por dia às 8h da manhã)
+   async verificarEntregas() {
+     this.logger.log('🔍 Iniciando verificação de entregas nos Correios...');
 
-  //   const pedidos = await this.orderRepository.find({
-  //     where: { status: 'enviado' },
-  //   });
+     const pedidos = await this.orderRepository.find({
+       where: { status: 'enviado' },
+     });
 
-  //   this.logger.log(
-  //     `📋 Encontrados ${pedidos.length} pedidos com status "enviado".`,
-  //   );
+     this.logger.log(
+      `📋 Encontrados ${pedidos.length} pedidos com status "enviado".`,
+     );
 
-  //   let consultas = 0;
+     let consultas = 0;
 
-  //   for (const pedido of pedidos) {
-  //     if (!pedido.codigoRastreamento) {
-  //       this.logger.warn(
-  //         `⚠️ Pedido ${pedido.id} não tem código de rastreamento.`,
-  //       );
-  //       continue;
-  //     }
+     for (const pedido of pedidos) {
+       if (!pedido.codigoRastreamento) {
+        this.logger.warn(
+          `⚠️ Pedido ${pedido.id} não tem código de rastreamento.`,
+         );
+         continue;
+       }
 
-  //     consultas++;
+       consultas++;
 
-  //     try {
-  //       const response = await axios.post(
-  //         'https://api-labs.wonca.com.br/wonca.labs.v1.LabsService/Track',
-  //         { code: pedido.codigoRastreamento },
-  //         {
-  //           headers: {
-  //             'Content-Type': 'application/json',
-  //             Authorization: `Apikey ${process.env.SITERASTREIO_API_KEY}`,
-  //           },
-  //         },
-  //       );
+      try {
+         const response = await axios.post(
+          'https://api-labs.wonca.com.br/wonca.labs.v1.LabsService/Track',
+           { code: pedido.codigoRastreamento },
+          {
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Apikey ${process.env.SITERASTREIO_API_KEY}`,
+            },
+           },
+         );
 
-  //       const data = response.data?.json
-  //         ? JSON.parse(response.data.json)
-  //         : null;
+        const data = response.data?.json
+          ? JSON.parse(response.data.json)
+          : null;
 
-  //       const entregue = data?.eventos?.some(
-  //         (e) =>
-  //           e.codigo === 'BDE' ||
-  //           e.descricao.toLowerCase().includes('entregue'),
-  //       );
+        const entregue = data?.eventos?.some(
+          (e) =>
+             e.codigo === 'BDE' ||
+             e.descricao.toLowerCase().includes('entregue'),
+        );
 
-  //       if (entregue) {
-  //         this.logger.log(
-  //           `✅ Pedido ${pedido.id} entregue! Atualizando status e disparando e-mail de feedback...`,
-  //         );
+        if (entregue) {
+         this.logger.log(
+           `✅ Pedido ${pedido.id} entregue! Atualizando status e disparando e-mail de feedback...`,
+           );
 
-  //         pedido.status = 'feedback';
-  //         await this.orderRepository.save(pedido);
+          pedido.status = 'feedback';
+          await this.orderRepository.save(pedido);
 
-  //         await this.enviarEmail(pedido.id, { status: 'feedback' });
-  //       } else {
-  //         this.logger.log(`⏳ Pedido ${pedido.id} ainda em trânsito.`);
-  //       }
-  //     } catch (err) {
-  //       this.logger.error(
-  //         `⚠️ Erro ao consultar pedido ${pedido.id}: ${err.message}`,
-  //       );
-  //     }
-  //   }
+          await this.enviarEmail(pedido.id, { status: 'feedback' });
+        } else {
+          this.logger.log(`⏳ Pedido ${pedido.id} ainda em trânsito.`);
+        }
+       } catch (err) {
+        this.logger.error(
+          `⚠️ Erro ao consultar pedido ${pedido.id}: ${err.message}`,
+         );
+      }
+    }
 
-  //   this.logger.log(`📊 Total de consultas feitas na API: ${consultas}`);
-  // }
+    this.logger.log(`📊 Total de consultas feitas na API: ${consultas}`);
+   }
+  //  */
+
 }
