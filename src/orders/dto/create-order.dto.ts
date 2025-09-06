@@ -76,6 +76,11 @@ export class CreateOrderDto {
   status?: string; // "novo" | "producao" | "finalizado" | "enviado"
 
   @IsOptional()
+  @IsBoolean()
+  urgente?: boolean;
+
+
+  @IsOptional()
   @IsObject()
   mensagemEmail?: {
     producao?: string;

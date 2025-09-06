@@ -7,7 +7,7 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Between, Repository } from 'typeorm';
+import { Between, LessThanOrEqual, MoreThanOrEqual, Repository } from 'typeorm';
 import { CreateOrderDto } from './dto/create-order.dto';
 import { UpdateOrderDto } from './dto/update-order.dto';
 import { Order } from './entities/order.entity';
@@ -187,29 +187,67 @@ Se precisar de algo, estamos por aqui!F`,
     return savedOrder;
   }
 
-  async findAll(): Promise<Order[]> {
-    return this.orderRepository.find();
+   async findAll(startDate?: string, endDate?: string): Promise<Order[]> {
+    const where: any = {};
+    
+    // Adicionar filtro de data se fornecido
+    if (startDate && endDate) {
+      where.createdAt = Between(new Date(startDate), new Date(endDate));
+    } else if (startDate) {
+      where.createdAt = MoreThanOrEqual(new Date(startDate));
+    } else if (endDate) {
+      where.createdAt = LessThanOrEqual(new Date(endDate));
+    }
+
+    return this.orderRepository.find({ where });
   }
 
   //contador pintura:
-  async countByPintor(pintor: string): Promise<number> {
-    return await this.orderRepository.count({ where: { pintor } });
+   async countByPintor(pintor: string, startDate?: string, endDate?: string): Promise<number> {
+    const where: any = { pintor };
+    
+    if (startDate && endDate) {
+      where.createdAt = Between(new Date(startDate), new Date(endDate));
+    } else if (startDate) {
+      where.createdAt = MoreThanOrEqual(new Date(startDate));
+    } else if (endDate) {
+      where.createdAt = LessThanOrEqual(new Date(endDate));
+    }
+
+    return this.orderRepository.count({ where });
   }
 
   //todos
 
-  async countAllPintores() {
-    return this.orderRepository
-      .createQueryBuilder('order')
-      .select('order.pintor', 'pintor')
-      .addSelect('COUNT(*)', 'total')
-      .groupBy('order.pintor')
-      .getRawMany();
+ async countAllPintores(startDate?: string, endDate?: string) {
+  let query = this.orderRepository
+    .createQueryBuilder('order')
+    .select('COALESCE(order.pintor, \'Não definido\')', 'pintor')
+    .addSelect('COUNT(*)', 'total')
+    .groupBy('order.pintor');
+
+  if (startDate && endDate) {
+    query = query.where('order.createdAt BETWEEN :startDate AND :endDate', {
+      startDate: new Date(startDate),
+      endDate: new Date(endDate),
+    });
+  } else if (startDate) {
+    query = query.where('order.createdAt >= :startDate', {
+      startDate: new Date(startDate),
+    });
+  } else if (endDate) {
+    query = query.where('order.createdAt <= :endDate', {
+      endDate: new Date(endDate),
+    });
   }
+
+  return query.getRawMany();
+}
+
 
   // métricas para dashboard
 
-  async getMetrics(from: string, to: string) {
+ async getMetrics(from: string, to: string) {
     const orders = await this.orderRepository.find({
       where: {
         createdAt: Between(new Date(from), new Date(to)),
@@ -217,15 +255,8 @@ Se precisar de algo, estamos por aqui!F`,
     });
 
     const totalPedidos = orders.length;
-
-    const totalValor = orders.reduce(
-      (acc, order) => acc + Number(order.valorTotal),
-      0,
-    );
-    const totalFrete = orders.reduce(
-      (acc, order) => acc + Number(order.frete),
-      0,
-    );
+    const totalValor = orders.reduce((acc, order) => acc + Number(order.valorTotal), 0);
+    const totalFrete = orders.reduce((acc, order) => acc + Number(order.frete), 0);
 
     const statusCount: Record<string, number> = {};
     const freteCount: Record<string, number> = {};
@@ -235,9 +266,9 @@ Se precisar de algo, estamos por aqui!F`,
       // Contagem por status
       statusCount[order.status] = (statusCount[order.status] || 0) + 1;
 
-      // Contagem por frete
-      freteCount[order.frete] =
-        (freteCount[order.frete] || 0) + Number(order.frete);
+      // Contagem por tipo de frete (agora agrupando por tipo)
+      const tipoFrete = order.tipoFrete || 'OUTRO';
+      freteCount[tipoFrete] = (freteCount[tipoFrete] || 0) + Number(order.frete || 0);
 
       // Lista de produtos (nome/descrição)
       if (order.produto && !produtos.includes(order.produto)) {
@@ -254,6 +285,35 @@ Se precisar de algo, estamos por aqui!F`,
       produtos,
     };
   }
+
+
+  async getOverviewByYear(year: number) {
+  const query = this.orderRepository
+    .createQueryBuilder('order')
+    .select("EXTRACT(MONTH FROM order.createdAt)", "month")
+    .addSelect("SUM(order.valorTotal - COALESCE(order.frete, 0))", "total")
+    .where("EXTRACT(YEAR FROM order.createdAt) = :year", { year })
+    .groupBy("month")
+    .orderBy("month", "ASC");
+
+  const raw = await query.getRawMany();
+
+  // Transforma em array com 12 meses
+  const months = [
+    'Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun',
+    'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'
+  ];
+
+  const result = months.map((name, idx) => {
+    const found = raw.find((r) => parseInt(r.month) === idx + 1);
+    return {
+      name,
+      total: found ? parseFloat(found.total) : 0
+    };
+  });
+
+  return result;
+}
 
   async findOne(id: string): Promise<Order> {
     const order = await this.orderRepository.findOne({ where: { id } });

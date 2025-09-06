@@ -41,6 +41,9 @@ export class Order {
   @Column('float', { nullable: true })
   frete: number;
 
+  @Column({ default: false })
+  urgente: boolean;
+
   // antes: @Column('float', { nullable: true }) tipoFrete: number;
   @Column({ type: 'varchar', length: 20, nullable: true })
   tipoFrete?: string; // "SEDEX" | "PAC" | undefined

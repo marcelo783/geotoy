@@ -35,9 +35,26 @@ export class OrdersController {
     return this.ordersService.getMensagemPorStatus(status);
   }
 
-  @Get('count-all-pintores')
-  async countAllPintores() {
-    return this.ordersService.countAllPintores();
+   @Get('count-all-pintores')
+  async countAllPintores(
+    @Query('startDate') startDate?: string,
+    @Query('endDate') endDate?: string,
+  ) {
+    return this.ordersService.countAllPintores(startDate, endDate);
+  }
+
+    @Get('count-by-pintor')
+  async countByPintor(
+    @Query('pintor') pintor: string,
+    @Query('startDate') startDate?: string,
+    @Query('endDate') endDate?: string,
+  ) {
+    return this.ordersService.countByPintor(pintor, startDate, endDate);
+  }
+
+ @Get('overview')
+  async getOverview(@Query('year') year: number) {
+    return this.ordersService.getOverviewByYear(year);
   }
 
   @Post()
@@ -60,8 +77,11 @@ export class OrdersController {
 
   @UseGuards(JwtAuthGuard)
   @Get()
-  findAll() {
-    return this.ordersService.findAll();
+  findAll(
+     @Query('startDate') startDate?: string,
+    @Query('endDate') endDate?: string,
+  ) {
+   return this.ordersService.findAll(startDate, endDate);
   }
 
   @UseGuards(JwtAuthGuard)

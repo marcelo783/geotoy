@@ -13,9 +13,10 @@ export class EmailConfigService {
   ) {}
 
   private readonly algorithm = 'aes-256-ctr';
-  private readonly secretKey = process.env.EMAIL_SECRET_KEY || 'fallback_secret_key';
+  private readonly secretKey =
+    process.env.EMAIL_SECRET_KEY || 'fallback_secret_key';
 
-  // ✅ Garante que a chave sempre terá 32 bytes
+  // ✅ Garante sempre 32 bytes de chave
   private getKey(): Buffer {
     return crypto.createHash('sha256').update(this.secretKey).digest();
   }
@@ -31,7 +32,11 @@ export class EmailConfigService {
     const [ivHex, encryptedHex] = hash.split(':');
     const iv = Buffer.from(ivHex, 'hex');
     const encryptedText = Buffer.from(encryptedHex, 'hex');
-    const decipher = crypto.createDecipheriv(this.algorithm, this.getKey(), iv);
+    const decipher = crypto.createDecipheriv(
+      this.algorithm,
+      this.getKey(),
+      iv,
+    );
     const decrypted = Buffer.concat([
       decipher.update(encryptedText),
       decipher.final(),
@@ -40,7 +45,7 @@ export class EmailConfigService {
   }
 
   async setConfig(email: string, password: string) {
-  let config = await this.repo.findOneBy({});
+  let config = await this.repo.findOneBy({}); // ✅ busca o único registro
   if (!config) {
     config = this.repo.create({
       email,
@@ -54,7 +59,16 @@ export class EmailConfigService {
 }
 
 async getConfig() {
-  const config = await this.repo.findOneBy({});
+  const config = await this.repo.findOneBy({}); // ✅ corrigido
+  if (!config) return null;
+  return {
+    email: config.email,
+    hasPassword: !!config.password,
+  };
+}
+
+async getDecryptedConfig() {
+  const config = await this.repo.findOneBy({}); // ✅ corrigido
   if (!config) return null;
   return {
     email: config.email,

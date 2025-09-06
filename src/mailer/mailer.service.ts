@@ -13,7 +13,8 @@ export class MailerService {
     html: string,
     attachments?: { filename: string; path: string }[],
   ) {
-    const config = await this.emailConfigService.getConfig();
+    // 👇 agora usamos a versão que retorna a senha descriptografada
+    const config = await this.emailConfigService.getDecryptedConfig();
     if (!config) throw new Error('Configuração de e-mail não encontrada');
 
     const transporter = nodemailer.createTransport({
@@ -22,7 +23,7 @@ export class MailerService {
       secure: false,
       auth: {
         user: config.email,
-        pass: config.password,
+        pass: config.password, // 👈 senha real descriptografada
       },
       tls: {
         rejectUnauthorized: false,
@@ -34,7 +35,7 @@ export class MailerService {
       to,
       subject,
       html,
-      attachments, // ✅ agora aceita anexos
+      attachments, // ✅ aceita anexos
     });
   }
 }
