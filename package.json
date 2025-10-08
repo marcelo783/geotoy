@@ -10,7 +10,8 @@
 },
 
   "scripts": {
-    "build": "nest build && npm run copy:templates",
+    "build": "npx nest build && npm run copy:templates",
+
     "build:ts": "tsc",
     "copy:templates": "mkdir -p dist/templates && cp -r src/templates/* dist/templates/",
 
