@@ -6,15 +6,12 @@
   "private": true,
   "license": "UNLICENSED",
   "engines": {
-  "node": "20.x"
-},
-
+    "node": "20.x"
+  },
   "scripts": {
     "build": "npx nest build && npm run copy:templates",
-
     "build:ts": "tsc",
     "copy:templates": "mkdir -p dist/templates && cp -r src/templates/* dist/templates/",
-
     "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
     "start": "nest start",
     "start:dev": "nest start --watch",
@@ -68,7 +65,7 @@
   "devDependencies": {
     "@eslint/eslintrc": "^3.2.0",
     "@eslint/js": "^9.18.0",
-    "@nestjs/cli": "^11.0.0",
+    "@nestjs/cli": "^11.0.10",
     "@nestjs/schematics": "^11.0.0",
     "@nestjs/testing": "^11.0.1",
     "@swc/cli": "^0.6.0",
