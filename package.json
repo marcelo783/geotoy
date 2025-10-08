@@ -5,10 +5,15 @@
   "author": "",
   "private": true,
   "license": "UNLICENSED",
+  "engines": {
+  "node": "20.x"
+},
+
   "scripts": {
     "build": "nest build && npm run copy:templates",
     "build:ts": "tsc",
-    "copy:templates": "xcopy src\\templates dist\\templates /E /I /Y",
+    "copy:templates": "mkdir -p dist/templates && cp -r src/templates/* dist/templates/",
+
     "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
     "start": "nest start",
     "start:dev": "nest start --watch",
