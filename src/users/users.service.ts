@@ -12,9 +12,13 @@ export class UsersService {
     private readonly userRepository: Repository<User>,
   ) {}
 
- async findByEmail(email: string): Promise<User | null> {
-  return this.userRepository.findOne({ where: { email } })
+async findByEmail(email: string): Promise<User | null> {
+  console.log('🔍 Procurando email:', email);
+  const user = await this.userRepository.findOne({ where: { email } });
+  console.log('🔍 Encontrado:', user);
+  return user;
 }
+
 
 
   async create(userData: Partial<User>) {

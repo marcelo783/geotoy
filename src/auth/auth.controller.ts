@@ -3,6 +3,7 @@ import { Controller, Post, Body, Res, UseGuards, Get, Req } from '@nestjs/common
 import { AuthService } from './auth.service';
 import { Response } from 'express';
 import { AuthGuard } from '@nestjs/passport';
+import { JwtAuthGuard } from './jwt-auth.guard';
 
 @Controller('auth')
 export class AuthController {
@@ -18,9 +19,9 @@ export class AuthController {
     // Define o cookie HTTP-only
     res.cookie('jwt', token, {
       httpOnly: true,
-      sameSite: 'lax', // ou 'none' com https
-      secure: false, // true apenas se estiver usando https
-    });
+      sameSite: 'none', // ou 'none' com https
+      secure: true, // true apenas se estiver usando https
+    }); 
 
     return { message: 'Login realizado com sucesso', usuario };
   }
@@ -30,16 +31,12 @@ export class AuthController {
     return this.authService.register(body.nome, body.email, body.senha);
   }
 
-   @UseGuards(AuthGuard('jwt'))
-  @Get('me')
-  async me(@Req() req: Request) {
-    const user = (req as any).user; // depende do payload
-    return {
-      id: user.sub,
-      email: user.email,
-      nome: user.nome, // se você incluir isto no token payload
-    };
-  }
+@UseGuards(JwtAuthGuard)
+@Get('me')
+async me(@Req() req: any) {
+  return req.user;
+}
+
 
   @Post('logout')
   async logout(@Res({ passthrough: true }) res: Response) {

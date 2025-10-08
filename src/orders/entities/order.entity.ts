@@ -12,7 +12,13 @@ import {
 @Entity('orders')
 export class Order {
   @PrimaryGeneratedColumn('uuid')
-  id: string;
+   id: string;
+
+@Column('text', { array: true, nullable: true })
+arquivos: string[];
+
+
+  
 
   @Column()
   produto: string;

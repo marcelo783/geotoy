@@ -26,6 +26,7 @@ import * as path from 'path';
 import { CreateOrderDto } from './dto/create-order.dto';
 import { JwtAuthGuard } from 'src/auth/jwt-auth.guard';
 
+@UseGuards(JwtAuthGuard)
 @Controller('orders')
 export class OrdersController {
   constructor(private readonly ordersService: OrdersService) {}
@@ -121,6 +122,21 @@ export class OrdersController {
     //const createdOrder = await this.ordersService.create(dados);
 
     return dados;
+  }
+
+  // Rota para upload de PDF de um pedido
+  @Post(':id/upload-pdf')
+  @UseInterceptors(FileInterceptor('file'))
+  async uploadOrderPdf(
+    @Param('id') orderId: string,
+    @UploadedFile() file: Express.Multer.File,
+  ) {
+    if (!file) {
+      throw new Error('Nenhum arquivo enviado');
+    }
+
+    const url = await this.ordersService.saveOrderPdf(orderId, file);
+    return { url }; // 🔥 retorna a URL pública
   }
 
   @Post(':id/enviar-email')

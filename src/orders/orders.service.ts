@@ -19,6 +19,9 @@ import { PdfUploadService } from './pdf-upload.service';
 import { MailerService } from '../mailer/mailer.service';
 import * as path from 'path';
 import { Cron, CronExpression } from '@nestjs/schedule';
+import { SupabaseService } from 'src/supabase/supabase.service';
+import { v4 as uuid } from 'uuid';
+
 
 function parseNumber(value: any): number {
   if (typeof value === 'string') {
@@ -139,6 +142,7 @@ Se precisar de algo, estamos por aqui!F`,
     private readonly pdfUploadService: PdfUploadService,
     private readonly mailerService: MailerService,
     private readonly configService: ConfigService,
+    private readonly supabaseService: SupabaseService,
   ) {}
 
   async create(createOrderDto: CreateOrderDto): Promise<Order> {
@@ -187,6 +191,7 @@ Se precisar de algo, estamos por aqui!F`,
     return savedOrder;
   }
 
+  
    async findAll(startDate?: string, endDate?: string): Promise<Order[]> {
     const where: any = {};
     
@@ -536,8 +541,82 @@ if (typeof config.mensagem === 'function') {
     return this.mensagensPorStatus;
   }
 
- /*
-   @Cron(CronExpression.EVERY_30_SECONDS) // 👈 produção (1x por dia às 8h da manhã)
+async createOrder(dto: CreateOrderDto, files?: Express.Multer.File[]): Promise<Order> {
+    const order = this.orderRepository.create(dto);
+
+    if (files && files.length > 0) {
+      const fileLinks: string[] = [];
+
+      for (const file of files) {
+        const path = `${uuid()}-${file.originalname}`;
+
+        const { error } = await this.supabaseService.cliente
+          .storage
+          .from(process.env.SUPABASE_BUCKET!)
+          .upload(path, file.buffer, {
+            contentType: file.mimetype,
+          });
+
+        if (error) {
+          throw new Error(`Erro ao fazer upload: ${error.message}`);
+        }
+
+        const { data } = this.supabaseService.cliente
+          .storage
+          .from(process.env.SUPABASE_BUCKET!)
+          .getPublicUrl(path);
+
+        fileLinks.push(data.publicUrl);
+      }
+
+      order.arquivos = fileLinks;
+    }
+
+    return await this.orderRepository.save(order);
+  }
+
+
+
+  // 2) Função genérica que salva PDF ou imagem
+  async saveOrderFile(orderId: string, file: Express.Multer.File) {
+    const folder = file.mimetype.includes('pdf') ? 'pdfs' : 'images';
+    const path = `orders/${orderId}/${folder}/${file.originalname}`;
+
+    // Upload no Supabase Storage
+    await this.supabaseService.uploadFile(
+      process.env.SUPABASE_BUCKET!,
+      path,
+      file.buffer,
+      file.mimetype,
+    );
+
+    // URL pública
+    const publicUrl = this.supabaseService.getPublicUrl(
+      process.env.SUPABASE_BUCKET!,
+      path,
+    );
+
+    // Atualizar no banco
+    const order = await this.orderRepository.findOne({ where: { id: orderId } });
+    if (!order) throw new NotFoundException(`Pedido ${orderId} não encontrado`);
+
+    if (Array.isArray(order.arquivos)) {
+      order.arquivos.push(publicUrl);
+    } else {
+      order.arquivos = [publicUrl];
+    }
+
+    await this.orderRepository.save(order);
+
+    return publicUrl;
+  }
+
+  // 3) Atalho que chama a genérica (só pra manter compatibilidade)
+  async saveOrderPdf(orderId: string, file: Express.Multer.File) {
+    return this.saveOrderFile(orderId, file);
+  }
+ 
+   @Cron('0 8 * * *') // 👈 produção (1x por dia às 8h da manhã)
    async verificarEntregas() {
      this.logger.log('🔍 Iniciando verificação de entregas nos Correios...');
 
@@ -604,6 +683,6 @@ if (typeof config.mensagem === 'function') {
 
     this.logger.log(`📊 Total de consultas feitas na API: ${consultas}`);
    }
-  //  */
+
 
 }

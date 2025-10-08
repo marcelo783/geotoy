@@ -5,12 +5,14 @@ import { UsersModule } from '../users/users.module';
 import { JwtModule, JwtService } from '@nestjs/jwt';
 import { JwtStrategy } from './jwt.strategy';
 import { ConfigModule, ConfigService } from '@nestjs/config';
+import { PassportModule } from '@nestjs/passport';
 
 @Module({
   imports: [
     ConfigModule.forRoot({
       isGlobal: true, // Isso garante que o ConfigService funcione globalmente
     }),
+    PassportModule.register({ defaultStrategy: 'jwt' }),
     forwardRef(() => UsersModule),
     JwtModule.registerAsync({
       imports: [ConfigModule],

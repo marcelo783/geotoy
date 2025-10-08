@@ -12,6 +12,9 @@ import {
 } from 'class-validator';
 
 export class CreateOrderDto {
+
+   arquivos?: string[];
+   
   @IsNotEmpty()
   @IsString()
   produto: string;
