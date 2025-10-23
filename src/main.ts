@@ -3,11 +3,12 @@ import { AppModule } from './app.module';
 import * as fs from 'fs';
 import { join } from 'path';
 import * as cookieParser from 'cookie-parser';
-const passport = require('passport'); // ✅ CommonJS import
+import * as passport from 'passport';
 import { NestExpressApplication } from '@nestjs/platform-express';
 import { ValidationPipe } from '@nestjs/common';
 
 async function bootstrap() {
+  // 🔹 Garante pastas locais
   const dirs = ['./uploads', './tmp'];
   dirs.forEach((dir) => {
     if (!fs.existsSync(dir)) fs.mkdirSync(dir);
@@ -15,11 +16,11 @@ async function bootstrap() {
 
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
 
-  // ✅ Inicializa o Passport corretamente
+  // 🔹 Middleware globais
   app.use(passport.initialize());
-
   app.use(cookieParser());
 
+  // 🔹 Pipes de validação globais
   app.useGlobalPipes(
     new ValidationPipe({
       whitelist: true,
@@ -28,15 +29,25 @@ async function bootstrap() {
     }),
   );
 
+  // 🔹 Servir arquivos estáticos
   app.useStaticAssets(join(__dirname, '..', 'uploads'), { prefix: '/uploads/' });
   app.useStaticAssets(join(__dirname, '..', 'public'), { prefix: '/public/' });
 
-  app.enableCors({
-    origin: 'http://localhost:5173',
-    credentials: true,
-  });
+  // 🔹 Configuração de CORS dinâmica
+  const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+app.enableCors({
+  origin: [
+    "http://localhost:5173",  // Dev normal
+    "http://localhost:4173",  // Dev com npm run preview
+    "https://geotoy.vercel.app", // Produção
+  ],
+  credentials: true,
+});
 
-await app.listen(process.env.PORT || 3000)
-  console.log('🚀 Server running at http://localhost:3000');
+  const port = process.env.PORT || 3000;
+  await app.listen(port);
+
+  console.log(`🚀 Server running at ${await app.getUrl()}`);
+  console.log(`✅ CORS liberado para: ${frontendUrl}`);
 }
 bootstrap();

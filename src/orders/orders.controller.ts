@@ -25,6 +25,9 @@ import { diskStorage } from 'multer';
 import * as path from 'path';
 import { CreateOrderDto } from './dto/create-order.dto';
 import { JwtAuthGuard } from 'src/auth/jwt-auth.guard';
+import axios from 'axios';
+import * as FormData from 'form-data';
+
 
 @UseGuards(JwtAuthGuard)
 @Controller('orders')
@@ -53,6 +56,12 @@ export class OrdersController {
     return this.ordersService.countByPintor(pintor, startDate, endDate);
   }
 
+    @Get('testar-cron')
+  async testarCron() {
+    await this.ordersService.verificarEntregas();
+    return { message: '🕒 Verificação de entregas executada manualmente!' };
+  }
+
  @Get('overview')
   async getOverview(@Query('year') year: number) {
     return this.ordersService.getOverviewByYear(year);
@@ -62,6 +71,40 @@ export class OrdersController {
   create(@Body() createOrderDto: CreateOrderDto) {
     return this.ordersService.create(createOrderDto);
   }
+
+@Post('pdf')
+@UseInterceptors(FileInterceptor('file'))
+async extractFromPdf(@UploadedFile() file: Express.Multer.File) {
+  if (!file) {
+    throw new BadRequestException('Nenhum arquivo foi enviado');
+  }
+
+  const formData = new FormData();
+  formData.append('file', file.buffer, {
+    filename: file.originalname,
+    contentType: file.mimetype,
+  });
+
+  try {
+    const response = await axios.post(
+      'https://geotoypython.onrender.com/extract',
+      formData,
+      {
+        headers: formData.getHeaders(),
+        maxBodyLength: Infinity, // previne erro com arquivos grandes
+        timeout: 120000, // 60 segundos de timeout
+      },
+    );
+  
+    return response.data;
+  }catch (error) {
+      console.error('Erro ao chamar o serviço Python:', error.message);
+      throw new InternalServerErrorException('Falha ao processar o PDF');
+    }
+  }
+  
+
+
 
   //para rastreio
 
