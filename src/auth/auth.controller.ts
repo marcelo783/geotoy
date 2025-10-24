@@ -21,7 +21,7 @@ export class AuthController {
     //  httpOnly: true,
       sameSite: 'none', // ou 'none' com https
       secure: true,
-       domain: 'geotoy.vercel.app' // true apenas se estiver usando https
+       domain: '.geotoy.vercel.app' // true apenas se estiver usando https
     }); 
 
     return { message: 'Login realizado com sucesso', usuario };
