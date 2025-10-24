@@ -42,6 +42,7 @@ app.enableCors({
     "https://geotoy.vercel.app", // Produção
   ],
   credentials: true,
+   allowedHeaders: ["Content-Type", "Authorization"],
 });
 
   const port = process.env.PORT || 3000;

@@ -18,9 +18,10 @@ export class AuthController {
 
     // Define o cookie HTTP-only
     res.cookie('jwt', token, {
-      httpOnly: true,
+    //  httpOnly: true,
       sameSite: 'none', // ou 'none' com https
-      secure: true, // true apenas se estiver usando https
+      secure: true,
+       domain: 'geotoy.vercel.app' // true apenas se estiver usando https
     }); 
 
     return { message: 'Login realizado com sucesso', usuario };

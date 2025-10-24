@@ -63,8 +63,9 @@ export class UsersController {
     const token = await this.jwtService.signAsync(payload);
 
     res.cookie('jwt', token, {
-      httpOnly: true,
+     // httpOnly: true,
       sameSite: 'none',
+       domain: 'geotoy.vercel.app',
       secure: true, //process.env.NODE_ENV === 'production',
       maxAge: 1000 * 60 * 60 * 24, // 1 dia
     });
