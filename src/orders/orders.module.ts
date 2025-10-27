@@ -7,12 +7,14 @@ import { PdfUploadService } from './pdf-upload.service';
 import { MailerModule } from 'src/mailer/mailer.module';
 import { Feedback } from 'src/feedback/entity/feedback.entity';
 import { SupabaseModule } from 'src/supabase/supabase.module';
+import { CloudinaryModule } from 'src/cloudinary/cloudinary.module';
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([Order, Feedback]),
     SupabaseModule,
     MailerModule,
+    CloudinaryModule,
    
   ],
   controllers: [OrdersController],

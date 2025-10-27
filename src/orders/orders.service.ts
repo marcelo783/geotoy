@@ -158,7 +158,7 @@ Se precisar de algo, estamos por aqui!F`,
     private readonly mailerService: MailerService,
     private readonly configService: ConfigService,
     private readonly supabaseService: SupabaseService,
-     private readonly cloudinaryService: CloudinaryService,
+    private readonly cloudinaryService: CloudinaryService,
    
   ) {}
 
