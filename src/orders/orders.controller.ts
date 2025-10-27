@@ -236,7 +236,7 @@ async extractFromPdf(@UploadedFile() file: Express.Multer.File) {
     @UploadedFiles() imagens: Express.Multer.File[],
   ) {
     const imagemPaths = imagens.map(
-      (img) => `http://localhost:3000/uploads/imagens/${img.filename}`,
+      (img) => `https://geotoy.onrender.com/uploads/imagens/${img.filename}`,
     );
 
     const dto: CreateOrderDto = {
