@@ -17,6 +17,8 @@ interface EmailTemplatePayload {
   saudacao?: string;
   statusTexto?: string;
   gerarEtapas?: string;
+   mostrarFotos?: boolean;
+  fotosHTML?: string;
 }
 
 export function gerarTemplateEmail(payload: EmailTemplatePayload) {

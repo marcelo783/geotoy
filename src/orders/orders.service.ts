@@ -21,6 +21,7 @@ import * as path from 'path';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { SupabaseService } from 'src/supabase/supabase.service';
 import { v4 as uuid } from 'uuid';
+import { CloudinaryService } from 'src/cloudinary/cloudinary.service';
 
 
 function parseNumber(value: any): number {
@@ -102,6 +103,20 @@ function gerarLinhaDoTempoHTML(
     .join('');
 }
 
+function gerarFotosHTML(imageUrls: string[]) {
+  return imageUrls
+    .map((url, i) => {
+      const cid = `cid-foto-${i + 1}`;
+      return `
+      <a href="cid:${cid}">
+        <img src="cid:${cid}" 
+             style="width: 160px; margin: 10px; border-radius: 10px; cursor: zoom-in;">
+      </a>`;
+    })
+    .join('');
+}
+
+
 @Injectable()
 export class OrdersService {
   private readonly logger = new Logger(OrdersService.name);
@@ -143,6 +158,8 @@ Se precisar de algo, estamos por aqui!F`,
     private readonly mailerService: MailerService,
     private readonly configService: ConfigService,
     private readonly supabaseService: SupabaseService,
+     private readonly cloudinaryService: CloudinaryService,
+   
   ) {}
 
   async create(createOrderDto: CreateOrderDto): Promise<Order> {
@@ -175,10 +192,11 @@ Se precisar de algo, estamos por aqui!F`,
       });
 
       try {
-        await this.mailerService.sendEmail(
+        await this.mailerService.sendEmailWithImages(
           savedOrder.email,
           'Recebemos seu pedido na Geotoy!',
           html,
+          [],
         );
         console.log(
           `📧 E-mail de confirmação enviado para ${savedOrder.email}`,
@@ -405,126 +423,150 @@ Se precisar de algo, estamos por aqui!F`,
     }
   }
 
-  async enviarEmail(id: string, body: any, anexos?: Express.Multer.File[]) {
-    const ordem = await this.orderRepository.findOne({ where: { id } });
+async enviarEmail(id: string, body: any, anexos?: Express.Multer.File[]) {
+  const ordem = await this.orderRepository.findOne({ where: { id } });
 
-    if (!ordem) {
-      throw new NotFoundException(`Pedido com ID ${id} não encontrado`);
-    }
+  if (!ordem) {
+    throw new NotFoundException(`Pedido com ID ${id} não encontrado`);
+  }
 
-    const attachments =
-      anexos?.map((file) => ({
-        filename: file.originalname,
-        path: path.resolve(file.path),
-      })) || [];
+  // 🔥 Criar HTML das imagens inline
+  function gerarFotosHTML(anexos: Express.Multer.File[] = []) {
+    return anexos
+      .filter(file => file.mimetype.startsWith("image/")) // só imagens
+      .map((file, index) => `
+        <a href="cid:foto-${index}">
+          <img src="cid:foto-${index}"
+               style="width: 160px; margin: 10px; border-radius: 10px;">
+        </a>
+      `)
+      .join('');
+  }
 
-    const config = this.mensagensPorStatus[body.status];
-    if (!config) {
-      throw new NotFoundException(
-        `Mensagem para status "${body.status}" não encontrada`,
-      );
-    }
+  const fotosHTML = gerarFotosHTML(anexos);
+  const mostrarFotos = fotosHTML.length > 0;
 
-    const saudacoes = {
-      producao: 'Fala',
-      finalizado: 'Ei',
-      enviado: 'Olá',
-      feedback: 'Oi',
-    };
+  // 🔥 Attachments com CID
+const attachments: {
+    filename: string;
+    path: string;
+    cid: string;
+  }[] = anexos?.map((file, index) => ({
+    filename: file.originalname,
+    path: path.resolve(file.path),
+    cid: `cid-foto-${index + 1}`,
+  })) || [];
 
-    const statusTextos = {
-      producao: 'PRODUÇÃO',
-      finalizado: 'FINALIZADO',
-      enviado: 'ENVIADO',
-       feedback: 'FEEDBACK',
-    };
+  const config = this.mensagensPorStatus[body.status];
+  if (!config) {
+    throw new NotFoundException(
+      `Mensagem para status "${body.status}" não encontrada`,
+    );
+  }
 
-    
-let mensagemFinal: string;
+  
 
-if (typeof config.mensagem === 'function') {
-  mensagemFinal = config.mensagem(ordem.id); 
-} else {
-  mensagemFinal = config.mensagem;
+  const saudacoes = {
+    producao: 'Fala',
+    finalizado: 'Ei',
+    enviado: 'Olá',
+    feedback: 'Oi',
+  };
+
+  const statusTextos = {
+    producao: 'PRODUÇÃO',
+    finalizado: 'FINALIZADO',
+    enviado: 'ENVIADO',
+    feedback: 'FEEDBACK',
+  };
+
+  let mensagemFinal: string;
+
+  if (typeof config.mensagem === 'function') {
+    mensagemFinal = config.mensagem(ordem.id);
+  } else {
+    mensagemFinal = config.mensagem;
+  }
+
+  function gerarLinhaDoTempoHTML(
+    status: 'producao' | 'finalizado' | 'enviado',
+  ): string {
+    const steps = ['Recebido', 'Produção', 'Finalizado', 'Enviado'];
+    const currentIndex = {
+      producao: 1,
+      finalizado: 2,
+      enviado: 3,
+    }[status];
+
+    return steps
+      .map((step, index) => {
+        const isAtiva = index === currentIndex;
+        const isConcluida = index < currentIndex;
+
+        const corFundo = isAtiva
+          ? '#ec4899'
+          : isConcluida
+            ? '#10b981'
+            : '#cbd5e1';
+
+        const statusTexto = isAtiva
+          ? 'Status atual'
+          : isConcluida
+            ? '<span style="color:#10b981;font-weight:bold;">✓</span>'
+            : 'Em breve';
+
+        const corBorda = isAtiva ? '#ec4899' : '#e2e8f0';
+
+        return `
+      <td valign="top" style="padding: 0 7.5px 15px 7.5px; width: 25%;">
+        <table border="0" cellpadding="0" cellspacing="0" width="100%" style="background: #f8fafc; border-radius: 12px; padding: 20px; text-align: center; border: 1px solid ${corBorda}; position: relative; overflow: hidden;">
+          <tr>
+            <td style="padding: 0">
+              <div style="display: inline-block; width: 40px; height: 40px; border-radius: 50%; background: ${corFundo}; color: white; font-weight: bold; font-size: 18px; line-height: 40px; text-align: center; margin-bottom: 15px;">
+                ${index + 1}
+              </div>
+            </td>
+            <td style="padding: 0; text-align: center">
+              <div style="font-size: 16px; font-weight: 600; color: #0f172a; margin-bottom: 5px;">
+                ${step}
+              </div>
+              <div style="font-size: 14px; color: #64748b; font-style: italic;">
+                ${statusTexto}
+              </div>
+            </td>
+          </tr>
+        </table>
+      </td>`;
+      })
+      .join('');
+  }
+
+  const shouldShowTracking = body.status === 'enviado';
+  const shouldShowSummary = body.status === 'novo';
+
+  const html = gerarTemplateEmail({
+    cliente: ordem.cliente,
+    saudacao: saudacoes[body.status],
+    statusTexto: statusTextos[body.status],
+    gerarEtapas: gerarLinhaDoTempoHTML(body.status),
+    mensagem: mensagemFinal,
+    gifUrl: config.gifUrl,
+    codigoRastreamento: body.codigoRastreamento,
+    mostrarResumo: shouldShowSummary,
+    mostrarAcompanhamento: shouldShowTracking,
+    mostrarFotos,
+    fotosHTML,
+  });
+
+  await this.mailerService.sendEmailWithImages(
+    ordem.email,
+    config.assunto,
+    html,
+    attachments,
+  );
 }
 
 
-    function gerarLinhaDoTempoHTML(
-      status: 'producao' | 'finalizado' | 'enviado',
-    ): string {
-      const steps = ['Recebido', 'Produção', 'Finalizado', 'Enviado'];
-      const currentIndex = {
-        producao: 1,
-        finalizado: 2,
-        enviado: 3,
-      }[status];
-
-      return steps
-        .map((step, index) => {
-          const isAtiva = index === currentIndex;
-          const isConcluida = index < currentIndex;
-
-          const corFundo = isAtiva
-            ? '#ec4899'
-            : isConcluida
-              ? '#10b981'
-              : '#cbd5e1';
-
-          const statusTexto = isAtiva
-            ? 'Status atual'
-            : isConcluida
-              ? '<span style="color:#10b981;font-weight:bold;">✓</span>'
-              : 'Em breve';
-
-          const corBorda = isAtiva ? '#ec4899' : '#e2e8f0';
-
-          return `
-        <td valign="top" style="padding: 0 7.5px 15px 7.5px; width: 25%;">
-          <table border="0" cellpadding="0" cellspacing="0" width="100%" style="background: #f8fafc; border-radius: 12px; padding: 20px; text-align: center; border: 1px solid ${corBorda}; position: relative; overflow: hidden;">
-            <tr>
-              <td style="padding: 0">
-                <div style="display: inline-block; width: 40px; height: 40px; border-radius: 50%; background: ${corFundo}; color: white; font-weight: bold; font-size: 18px; line-height: 40px; text-align: center; margin-bottom: 15px;">
-                  ${index + 1}
-                </div>
-              </td>
-              <td style="padding: 0; text-align: center">
-                <div style="font-size: 16px; font-weight: 600; color: #0f172a; margin-bottom: 5px;">
-                  ${step}
-                </div>
-                <div style="font-size: 14px; color: #64748b; font-style: italic;">
-                  ${statusTexto}
-                </div>
-              </td>
-            </tr>
-          </table>
-        </td>`;
-        })
-        .join('');
-    }
-
-    //  const config = mensagensPorStatus[body.status];
-    const shouldShowTracking = body.status !== 'feedback';
-    const shouldShowSummary = body.status === 'novo';
-
-    const html = gerarTemplateEmail({
-      cliente: ordem.cliente,
-      saudacao: saudacoes[body.status],
-      statusTexto: statusTextos[body.status],
-      gerarEtapas: gerarLinhaDoTempoHTML(body.status),
-       mensagem: mensagemFinal,
-      gifUrl: config.gifUrl,
-      codigoRastreamento: body.codigoRastreamento,
-      mostrarResumo: shouldShowSummary,
-      mostrarAcompanhamento: shouldShowTracking,
-    });
-
-    await this.mailerService.sendEmail(
-      ordem.email,
-      config.assunto,
-      html,
-      attachments,
-    );
-  }
 
   async getMensagemPorStatus(status: string) {
     const config = this.mensagensPorStatus[status];

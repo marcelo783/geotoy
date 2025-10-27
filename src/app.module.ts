@@ -9,6 +9,7 @@ import { UsersModule } from './users/users.module'
 import { AuthModule } from './auth/auth.module'
 import { ScheduleModule } from '@nestjs/schedule';
 import { FeedbackModule } from './feedback/feedback.module'
+import { CloudinaryModule } from './cloudinary/cloudinary.module'
 
 
 @Module({
@@ -19,19 +20,19 @@ import { FeedbackModule } from './feedback/feedback.module'
      ScheduleModule.forRoot(),
  TypeOrmModule.forRoot({
   type: 'postgres',
-  host: process.env.DB_HOST,   // aws-1-sa-east-1.pooler.supabase.com
-  port: Number(process.env.DB_PORT), // 6543
-  username: process.env.DB_USERNAME, // postgres.kgcafqfuqkowxkbyrcau
-  password: process.env.DB_PASSWORD, // IToyXwoXxDUggbSf
-  database: process.env.DB_NAME,     // postgres
+  host: process.env.DB_HOST,   
+  port: Number(process.env.DB_PORT), 
+  username: process.env.DB_USERNAME, 
+  password: process.env.DB_PASSWORD, 
+  database: process.env.DB_NAME,     
   autoLoadEntities: true,
-  synchronize: false, // ⚠️ cuidado em produção, pode apagar dados
+  synchronize: false,
   ssl: {
-    rejectUnauthorized: false, // Supabase exige SSL
+    rejectUnauthorized: false,
   },
 }),
 
-
+    CloudinaryModule,
     OrdersModule,
     MailerModule,
     AuthModule,

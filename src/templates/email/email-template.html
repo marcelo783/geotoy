@@ -349,7 +349,34 @@
                             >Rastrear Pedido</a
                           >
                         </div>
-                        {{/if}}
+                        {{/if}} {{#if mostrarFotos}}                        
+                        <div
+                          style="
+                            margin: 20px 0;
+                            text-align: center;
+                            border-top: 1px solid #eee;
+                            padding-top: 20px;
+                          "
+                        >
+                          
+                          <h3
+                            style="
+                              color: #8b5cf6;
+                              font-size: 20px;
+                              margin-bottom: 20px;
+                              font-weight: 700;
+                            "
+                          >
+                             ✨ Resultado Final: Seu
+                            Toy Art! 
+                          </h3>
+                        
+                          <div style="display: block; text-align: center">
+                           
+                             {{{fotosHTML}}} 
+                          </div>
+                        </div>
+                      {{/if}}
 
                         <table
                           border="0"
@@ -574,9 +601,7 @@
                             </td>
                           </tr>
                         </table>
-                        {{/if}}
-
-                        {{#if mostrarAcompanhamento}}
+                        {{/if}} {{#if mostrarAcompanhamento}}
                         <table
                           border="0"
                           cellpadding="0"
@@ -760,7 +785,6 @@
                             "
                             >FB</a
                           >
-                          
                         </div>
                         <div
                           class="copyright"
