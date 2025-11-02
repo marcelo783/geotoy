@@ -387,6 +387,15 @@ Se precisar de algo, estamos por aqui!F`,
     }
   }
 
+  async testarEmail() {
+  await this.mailerService.sendEmailWithImages(
+    'marcelo.oliveira7931@gmail.com',
+    '🚀 Teste GeoToy',
+    '<h1>Funcionou!</h1><p>Este é um teste de envio via Mailgun API.</p>',
+  );
+  return 'Email enviado com sucesso!';
+}
+
   async processPdf(filePath: string): Promise<any> {
     try {
       const dados = await this.pdfUploadService.extractDataFromPdf(filePath);

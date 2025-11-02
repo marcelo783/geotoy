@@ -27,6 +27,8 @@ import { CreateOrderDto } from './dto/create-order.dto';
 import { JwtAuthGuard } from 'src/auth/jwt-auth.guard';
 import axios from 'axios';
 import * as FormData from 'form-data';
+import { SetMetadata } from '@nestjs/common';
+export const Public = () => SetMetadata('isPublic', true);
 
 
 @UseGuards(JwtAuthGuard)
@@ -215,6 +217,14 @@ async extractFromPdf(@UploadedFile() file: Express.Multer.File) {
 
     return this.ordersService.enviarEmail(id, body, arquivos);
   }
+
+@Get('teste-email')
+@Public() // ⬅️ cria um decorator para ignorar o guard
+async testarEmail() {
+  return this.ordersService.testarEmail();
+}
+
+
 
   //enviar img
 
