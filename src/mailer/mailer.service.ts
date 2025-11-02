@@ -1,16 +1,18 @@
-// src/mailer/mailer.service.ts
-import { Injectable, InternalServerErrorException } from '@nestjs/common';
+import * as fs from 'fs';
+import * as path from 'path';
+import FormData from 'form-data';
 import Mailgun from 'mailgun.js';
-import * as formData from 'form-data';
+import { Injectable, Logger } from '@nestjs/common';
 
 @Injectable()
 export class MailerService {
-  private mg: any;
+  private mg;
   private domain: string;
   private from: string;
+  private logger = new Logger(MailerService.name);
 
   constructor() {
-    const mailgun = new Mailgun(formData);
+    const mailgun = new Mailgun(FormData);
     this.mg = mailgun.client({
       username: 'api',
       key: process.env.MAILGUN_API_KEY!,
@@ -23,13 +25,16 @@ export class MailerService {
     to: string,
     subject: string,
     html: string,
-    attachments?: {
-      filename: string;
-      path: string;
-      cid: string;
-    }[],
+    attachments?: { filename: string; path: string; cid?: string }[],
   ) {
     try {
+      const formattedAttachments =
+        attachments?.map((a) => ({
+          filename: a.filename,
+          data: fs.createReadStream(path.resolve(a.path)),
+          cid: a.cid,
+        })) ?? [];
+
       const data: any = {
         from: this.from,
         to,
@@ -37,20 +42,16 @@ export class MailerService {
         html,
       };
 
-      if (attachments?.length) {
-        data.attachment = attachments.map((att) => ({
-          filename: att.filename,
-          path: att.path,
-          cid: att.cid,
-        }));
+      if (formattedAttachments.length > 0) {
+        data.attachment = formattedAttachments.map((a) => a.data);
       }
 
       const result = await this.mg.messages.create(this.domain, data);
-      console.log('✅ Email enviado com sucesso:', result.id);
-      return { success: true };
+      this.logger.log(`✅ Email enviado com sucesso: ${result.id}`);
+      return result;
     } catch (error) {
-      console.error('❌ Erro ao enviar email:', error);
-      throw new InternalServerErrorException('Falha ao enviar o email');
+      this.logger.error('❌ Erro ao enviar email:', error);
+      throw error;
     }
   }
 }

@@ -571,7 +571,7 @@ const attachments: {
     ordem.email,
     config.assunto,
     html,
-    attachments,
+    anexos,
   );
 }
 
