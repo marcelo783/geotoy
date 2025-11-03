@@ -1,22 +1,25 @@
+import { Injectable, Logger } from '@nestjs/common';
 import * as fs from 'fs';
 import * as path from 'path';
-import FormData from 'form-data';
 import Mailgun from 'mailgun.js';
-import { Injectable, Logger } from '@nestjs/common';
+import formData from 'form-data'; // 👈 Import correto
 
 @Injectable()
 export class MailerService {
-  private mg;
+  private mg: any;
   private domain: string;
   private from: string;
   private logger = new Logger(MailerService.name);
 
   constructor() {
-    const mailgun = new Mailgun(FormData);
+    // 👇 Aqui está o segredo: garantir o uso de "form-data" para Node
+    const mailgun = new Mailgun(formData);
+
     this.mg = mailgun.client({
       username: 'api',
       key: process.env.MAILGUN_API_KEY!,
     });
+
     this.domain = process.env.MAILGUN_DOMAIN!;
     this.from = process.env.MAILGUN_FROM!;
   }
@@ -28,6 +31,7 @@ export class MailerService {
     attachments?: { filename: string; path: string; cid?: string }[],
   ) {
     try {
+      // Converte os anexos em streams
       const formattedAttachments =
         attachments?.map((a) => ({
           filename: a.filename,
@@ -47,6 +51,7 @@ export class MailerService {
       }
 
       const result = await this.mg.messages.create(this.domain, data);
+
       this.logger.log(`✅ Email enviado com sucesso: ${result.id}`);
       return result;
     } catch (error) {
