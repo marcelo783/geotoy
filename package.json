@@ -79,6 +79,7 @@
     "@types/bcrypt": "^6.0.0",
     "@types/form-data": "^2.2.1",
     "@types/jest": "^29.5.14",
+    "@types/mailgun-js": "^0.22.19",
     "@types/node": "^22.10.7",
     "@types/passport-jwt": "^4.0.1",
     "@types/supertest": "^6.0.2",

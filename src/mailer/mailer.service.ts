@@ -1,7 +1,8 @@
 import { Injectable, Logger } from '@nestjs/common';
 import * as fs from 'fs';
 import * as path from 'path';
-import mailgun from 'mailgun-js';
+import * as mailgun from 'mailgun-js';
+
 
 @Injectable()
 export class MailerService {
