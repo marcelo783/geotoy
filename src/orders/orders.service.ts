@@ -192,11 +192,11 @@ Se precisar de algo, estamos por aqui!F`,
       });
 
       try {
-        await this.mailerService.sendEmailWithImages(
+        await this.mailerService.sendEmail(
           savedOrder.email,
           'Recebemos seu pedido na Geotoy!',
           html,
-          [],
+          
         );
         console.log(
           `📧 E-mail de confirmação enviado para ${savedOrder.email}`,
@@ -388,7 +388,7 @@ Se precisar de algo, estamos por aqui!F`,
   }
 
   async testarEmail() {
-  await this.mailerService.sendEmailWithImages(
+  await this.mailerService.sendEmail(
     'marcelo.oliveira7931@gmail.com',
     '🚀 Teste GeoToy',
     '<h1>Funcionou!</h1><p>Este é um teste de envio via Mailgun API.</p>',
@@ -567,11 +567,11 @@ const attachments = anexos?.map((file, index) => ({
     fotosHTML,
   });
 
-  await this.mailerService.sendEmailWithImages(
+  await this.mailerService.sendEmail(
     ordem.email,
     config.assunto,
     html,
-    anexos,
+    
   );
 }
 
