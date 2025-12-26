@@ -440,31 +440,31 @@ async enviarEmail(id: string, body: any, anexos?: Express.Multer.File[]) {
   }
 
   // 🔥 Criar HTML das imagens inline
-  function gerarFotosHTML(anexos: Express.Multer.File[] = []) {
-    return anexos
-      .filter(file => file.mimetype.startsWith("image/")) // só imagens
-      .map((file, index) => `
-        <a href="cid:foto-${index}">
-          <img src="cid:foto-${index}"
-               style="width: 160px; margin: 10px; border-radius: 10px;">
-        </a>
-      `)
-      .join('');
-  }
+function gerarFotosHTML(anexos: Express.Multer.File[] = []) {
+  return anexos
+    .filter(file => file.mimetype.startsWith("image/"))
+    .map((file, index) => {
+      const cid = `cid-foto-${index + 1}`;
+      return `
+        <a href="cid:${cid}">
+          <img src="cid:${cid}"
+               style="width: 160px; margin: 10px; border-radius: 10px; cursor: zoom-in;">
+        </a>`;
+    })
+    .join('');
+}
+
 
   const fotosHTML = gerarFotosHTML(anexos);
   const mostrarFotos = fotosHTML.length > 0;
 
   // 🔥 Attachments com CID
-const attachments: {
-    filename: string;
-    path: string;
-    cid: string;
-  }[] = anexos?.map((file, index) => ({
-    filename: file.originalname,
-    path: path.resolve(file.path),
-    cid: `cid-foto-${index + 1}`,
-  })) || [];
+const attachments = anexos?.map((file, index) => ({
+  filename: file.originalname,
+  path: path.resolve(file.path),
+  cid: `cid-foto-${index + 1}`, // ✅ mesmo CID do HTML
+})) || [];
+
 
   const config = this.mensagensPorStatus[body.status];
   if (!config) {
