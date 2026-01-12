@@ -30,6 +30,12 @@ import { CloudinaryModule } from './cloudinary/cloudinary.module'
   ssl: {
     rejectUnauthorized: false,
   },
+
+    extra: {
+    ssl: {
+      rejectUnauthorized: false,
+    },
+  },
 }),
 
     CloudinaryModule,
